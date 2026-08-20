@@ -1207,6 +1207,36 @@
       return canvas.toDataURL('image/jpeg', qualidade).split(',')[1];
     }
 
+    // Melhora a legibilidade pro OCR: converte pra escala de cinza e aplica
+    // alongamento de contraste (stretch linear baseado no min/máx de brilho da
+    // foto). Fotos de etiqueta em galpão costumam ter iluminação desigual/baixo
+    // contraste, e isso ajuda bastante o Tesseract sem custar processamento
+    // pesado. Não mexe no canvas original (o do barcode continua colorido).
+    function _prepararCanvasParaOCR(canvasOrigem) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvasOrigem.width;
+      canvas.height = canvasOrigem.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(canvasOrigem, 0, 0);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d = imgData.data;
+
+      let min = 255, max = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        const cinza = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        d[i] = d[i + 1] = d[i + 2] = cinza;
+        if (cinza < min) min = cinza;
+        if (cinza > max) max = cinza;
+      }
+      const alcance = Math.max(1, max - min);
+      for (let i = 0; i < d.length; i += 4) {
+        const v = ((d[i] - min) / alcance) * 255;
+        d[i] = d[i + 1] = d[i + 2] = v < 0 ? 0 : v > 255 ? 255 : v;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      return canvas;
+    }
+
     // ─── Fotografar: OCR + QR Code com uma foto só ───────────────────────────────
     async function fotografarEtiqueta() {
       try {
@@ -1234,14 +1264,14 @@
           console.log('[Camera] base64 length:', base64.length);
         } else {
           const file = await capturarFotoWeb();
-          // Imagem um pouco maior pra leitura de barcode/QR (1D perde
-          // legibilidade com downscale agressivo) e menor pra OCR (mais rápido).
-          const [canvasBarcode, canvasOcr] = await Promise.all([
-            _imageFileParaCanvas(file, 2000),
-            _imageFileParaCanvas(file, 1600)
-          ]);
-          base64Barcode = _canvasParaBase64(canvasBarcode);
-          base64 = _canvasParaBase64(canvasOcr);
+          // Base em resolução mais alta (2000px) reaproveitada tanto pro
+          // barcode (colorido) quanto como ponto de partida do OCR (que
+          // recebe, além disso, escala de cinza + contraste — ver
+          // _prepararCanvasParaOCR).
+          const canvasBase = await _imageFileParaCanvas(file, 2000);
+          const canvasOcr = _prepararCanvasParaOCR(canvasBase);
+          base64Barcode = _canvasParaBase64(canvasBase);
+          base64 = _canvasParaBase64(canvasOcr, 0.95);
           foto = { path: null, webPath: null };
         }
 
@@ -1269,6 +1299,13 @@
         if (resultadoOCR.status === 'fulfilled' && resultadoOCR.value) {
           const texto = resultadoOCR.value;
           console.log('[OCR] texto:\n', texto);
+          if (!window.Capacitor) {
+            // Debug visível no navegador (sem plugin nativo não tem como ver
+            // o console no celular) — mostra o que o OCR conseguiu ler.
+            // alert() (não toast) porque o toast seguinte de aplicarCamposIA
+            // sobrescreveria esse texto antes de dar tempo de ler.
+            alert('OCR leu:\n\n' + texto.trim());
+          }
           const dados = parsearEtiqueta(texto);
           aplicarCamposIA(dados);
         } else {
