@@ -1238,11 +1238,36 @@
       return canvas;
     }
 
+    // Gira um canvas em 90/180/270°. Fotos tiradas com o celular deitado
+    // (paisagem) deixam o texto da etiqueta de lado, e o Tesseract não gira
+    // sozinho pra ler texto rotacionado — ver rodarOCRWeb.
+    function _rotacionarCanvas(canvasOrigem, graus) {
+      const trocaEixos = graus === 90 || graus === 270;
+      const canvas = document.createElement('canvas');
+      canvas.width = trocaEixos ? canvasOrigem.height : canvasOrigem.width;
+      canvas.height = trocaEixos ? canvasOrigem.width : canvasOrigem.height;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(graus * Math.PI / 180);
+      ctx.drawImage(canvasOrigem, -canvasOrigem.width / 2, -canvasOrigem.height / 2);
+      return canvas;
+    }
+
+    // Estima se um texto de OCR "parece real": conta caracteres alfanuméricos
+    // e a proporção deles em relação a pontuação/símbolos de ruído — texto
+    // rotacionado lido errado sai cheio de "=", "|", "&" etc. e pouco texto útil.
+    function _qualidadeOCR(texto) {
+      const semEspacos = (texto || '').replace(/\s/g, '');
+      const alnum = (semEspacos.match(/[A-Za-z0-9À-ÿ]/g) || []).length;
+      const proporcao = semEspacos.length ? alnum / semEspacos.length : 0;
+      return { alnum, proporcao };
+    }
+
     // ─── Fotografar: OCR + QR Code com uma foto só ───────────────────────────────
     async function fotografarEtiqueta() {
       try {
         const Camera = window?.Capacitor?.Plugins?.Camera;
-        let foto, base64, base64Barcode;
+        let foto, base64, base64Barcode, canvasOcr = null;
 
         if (Camera) {
           foto = await Camera.getPhoto({
@@ -1270,7 +1295,7 @@
           // recebe, além disso, escala de cinza + contraste — ver
           // _prepararCanvasParaOCR).
           const canvasBase = await _imageFileParaCanvas(file, 2000);
-          const canvasOcr = _prepararCanvasParaOCR(canvasBase);
+          canvasOcr = _prepararCanvasParaOCR(canvasBase);
           base64Barcode = _canvasParaBase64(canvasBase);
           base64 = _canvasParaBase64(canvasOcr, 0.95);
           foto = { path: null, webPath: null };
@@ -1279,7 +1304,7 @@
         setAiStatus(true, 'Lendo QR Code e texto da etiqueta...');
 
         const [resultadoOCR, resultadoQR] = await Promise.allSettled([
-          rodarOCR(foto, base64),
+          rodarOCR(foto, base64, canvasOcr),
           rodarBarcode(foto, base64Barcode)
         ]);
 
@@ -1373,9 +1398,9 @@
 }
 
     // ─── OCR via CapacitorOcr ─────────────────────────────────────────────────────
-    async function rodarOCR(foto, base64) {
+    async function rodarOCR(foto, base64, canvasOcr) {
       const OCR = window?.Capacitor?.Plugins?.CapacitorOcr;
-      if (!OCR) return rodarOCRWeb(base64);
+      if (!OCR) return rodarOCRWeb(canvasOcr);
 
       const tentativas = [
         { base64: base64 },
@@ -1426,12 +1451,35 @@
       return _tesseractWorker;
     }
 
-    async function rodarOCRWeb(base64) {
+    async function rodarOCRWeb(canvasOcr) {
       const worker = await _getTesseractWorker();
-      const { data } = await worker.recognize(`data:image/jpeg;base64,${base64}`);
-      const texto = data?.text ?? '';
-      if (!texto.trim()) throw new Error('OCR web: nenhum texto detectado');
-      return texto;
+
+      async function reconhecer(canvas) {
+        const { data } = await worker.recognize(canvas.toDataURL('image/jpeg', 0.95));
+        return data?.text ?? '';
+      }
+
+      let melhorTexto = await reconhecer(canvasOcr);
+      let melhorQ = _qualidadeOCR(melhorTexto);
+      console.log('[OCR web] 0°:', melhorQ);
+
+      // Resultado com poucos caracteres reais ou muito ruído (símbolos) —
+      // provavelmente a foto foi tirada com o celular deitado e o texto da
+      // etiqueta saiu de lado. Tenta girar e refazer.
+      if (melhorQ.alnum < 25 || melhorQ.proporcao < 0.55) {
+        for (const graus of [90, 180, 270]) {
+          const texto = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
+          const q = _qualidadeOCR(texto);
+          console.log(`[OCR web] ${graus}°:`, q);
+          if (q.alnum > melhorQ.alnum && q.proporcao >= 0.5) {
+            melhorTexto = texto;
+            melhorQ = q;
+          }
+        }
+      }
+
+      if (!melhorTexto.trim()) throw new Error('OCR web: nenhum texto detectado');
+      return melhorTexto;
     }
 
     // ─── Barcode via BarcodeScanner ──────────────────────────────────────────────
