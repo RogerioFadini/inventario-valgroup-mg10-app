@@ -1238,89 +1238,18 @@
       return canvas;
     }
 
-    // Gira um canvas em qualquer ângulo (não só múltiplos de 90°) — usado
-    // tanto pelas 4 rotações "redondas" (90/180/270) quanto pelo endireitamento
-    // fino de detectarAnguloInclinacao. O canvas de saída é redimensionado pra
-    // caber a imagem inteira girada (bounding box), com fundo branco nas
-    // sobras — etiqueta é papel branco, então isso não atrapalha o OCR.
-    function _rotacionarCanvas(canvasOrigem, anguloGraus) {
-      const rad = (anguloGraus * Math.PI) / 180;
-      const cos = Math.abs(Math.cos(rad));
-      const sin = Math.abs(Math.sin(rad));
-      const novaLargura = Math.round(canvasOrigem.width * cos + canvasOrigem.height * sin);
-      const novaAltura = Math.round(canvasOrigem.width * sin + canvasOrigem.height * cos);
-
+    // Gira um canvas em 90/180/270° — usado pra testar as 4 orientações
+    // possíveis da foto no OCR web (ver rodarOCRWeb).
+    function _rotacionarCanvas(canvasOrigem, graus) {
+      const trocaEixos = graus === 90 || graus === 270;
       const canvas = document.createElement('canvas');
-      canvas.width = novaLargura;
-      canvas.height = novaAltura;
+      canvas.width = trocaEixos ? canvasOrigem.height : canvasOrigem.width;
+      canvas.height = trocaEixos ? canvasOrigem.width : canvasOrigem.height;
       const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, novaLargura, novaAltura);
-      ctx.translate(novaLargura / 2, novaAltura / 2);
-      ctx.rotate(rad);
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(graus * Math.PI / 180);
       ctx.drawImage(canvasOrigem, -canvasOrigem.width / 2, -canvasOrigem.height / 2);
       return canvas;
-    }
-
-    // Detecta o ângulo fino de inclinação da foto (-45° a +45°, em passos de
-    // 2°): pra cada ângulo candidato, projeta os pixels escuros (texto) num
-    // eixo Y rotacionado e mede a variância dessa projeção — linhas de texto
-    // bem alinhadas horizontalmente produzem picos nítidos na projeção
-    // (variância alta); o ângulo com maior variância é a inclinação real da
-    // foto. Amostra 1 em cada 4 pixels pra ficar rápido o bastante pra rodar
-    // no celular.
-    function detectarAnguloInclinacao(canvasSrc) {
-      const ctx = canvasSrc.getContext('2d');
-      const width = canvasSrc.width;
-      const height = canvasSrc.height;
-      const imgData = ctx.getImageData(0, 0, width, height);
-      const data = imgData.data;
-
-      let melhorAngulo = 0;
-      let maiorVariancia = -1;
-
-      for (let angulo = -45; angulo <= 45; angulo += 2) {
-        const rad = (angulo * Math.PI) / 180;
-        const cos = Math.cos(rad);
-        const sin = Math.sin(rad);
-
-        const projecao = new Float32Array(height);
-
-        for (let y = 0; y < height; y += 4) {
-          for (let x = 0; x < width; x += 4) {
-            const i = (y * width + x) * 4;
-            const luminancia = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-            if (luminancia < 128) {
-              const newY = Math.round(-x * sin + y * cos);
-              if (newY >= 0 && newY < height) projecao[newY]++;
-            }
-          }
-        }
-
-        let soma = 0;
-        for (let i = 0; i < height; i++) soma += projecao[i];
-        const media = soma / height;
-
-        let variancia = 0;
-        for (let i = 0; i < height; i++) variancia += (projecao[i] - media) ** 2;
-
-        if (variancia > maiorVariancia) {
-          maiorVariancia = variancia;
-          melhorAngulo = angulo;
-        }
-      }
-
-      return melhorAngulo;
-    }
-
-    // Estima se um texto de OCR "parece real": conta caracteres alfanuméricos
-    // e a proporção deles em relação a pontuação/símbolos de ruído — texto
-    // rotacionado lido errado sai cheio de "=", "|", "&" etc. e pouco texto útil.
-    function _qualidadeOCR(texto) {
-      const semEspacos = (texto || '').replace(/\s/g, '');
-      const alnum = (semEspacos.match(/[A-Za-z0-9À-ÿ]/g) || []).length;
-      const proporcao = semEspacos.length ? alnum / semEspacos.length : 0;
-      return { alnum, proporcao };
     }
 
     // ─── Fotografar: OCR + QR Code com uma foto só ───────────────────────────────
@@ -1514,51 +1443,30 @@
     async function rodarOCRWeb(canvasOcr) {
       const worker = await _getTesseractWorker();
 
+      // Usa a confiança que o próprio Tesseract calcula pra cada leitura
+      // (0-100, baseada no modelo de reconhecimento) — muito mais confiável
+      // do que tentar adivinhar pela aparência do texto extraído.
       async function reconhecer(canvas) {
         const { data } = await worker.recognize(canvas.toDataURL('image/jpeg', 0.95));
-        return data?.text ?? '';
+        return { texto: data?.text ?? '', confianca: data?.confidence ?? 0 };
       }
 
-      let melhorTexto = await reconhecer(canvasOcr);
-      let melhorQ = _qualidadeOCR(melhorTexto);
-      console.log('[OCR web] 0°:', melhorQ);
+      let melhor = await reconhecer(canvasOcr);
+      console.log('[OCR web] 0°: confiança', melhor.confianca);
 
-      const boaLeitura = (q) => q.alnum > 40 && q.proporcao > 0.8;
-      const leituraFraca = (q) => q.alnum < 25 || q.proporcao < 0.55;
-
-      // 1. Rotações "redondas" (90/180/270) direto na imagem original — cobre
-      // o caso mais comum (celular deitado/de cabeça pra baixo), sem nenhuma
-      // correção fina no meio do caminho que possa desalinhar o que já é
-      // um múltiplo exato de 90°.
-      if (leituraFraca(melhorQ)) {
+      // Testa as outras 3 orientações possíveis (celular deitado ou de
+      // cabeça pra baixo) e fica com a de maior confiança.
+      if (melhor.confianca < 60) {
         for (const graus of [90, 180, 270]) {
-          const texto = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
-          const q = _qualidadeOCR(texto);
-          console.log(`[OCR web] ${graus}°:`, q);
-          if (q.alnum > melhorQ.alnum && q.proporcao >= 0.5) { melhorTexto = texto; melhorQ = q; }
-          if (boaLeitura(melhorQ)) break;
+          const r = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
+          console.log(`[OCR web] ${graus}°: confiança`, r.confianca);
+          if (r.confianca > melhor.confianca) melhor = r;
+          if (melhor.confianca >= 80) break;
         }
       }
 
-      // 2. Se ainda fraco, a foto pode estar torta num ângulo qualquer (não
-      // múltiplo de 90°) — testa as 4 orientações base e, em cada uma, detecta
-      // e corrige a inclinação fina (-45° a +45°) antes de reconhecer. Cobre
-      // qualquer ângulo de captura, sem depender de acertar de primeira.
-      if (leituraFraca(melhorQ)) {
-        for (const baseGraus of [0, 90, 180, 270]) {
-          const base = baseGraus === 0 ? canvasOcr : _rotacionarCanvas(canvasOcr, baseGraus);
-          const inclinacao = detectarAnguloInclinacao(base);
-          if (Math.abs(inclinacao) < 1) continue; // sem inclinação fina, já coberto no passo 1
-          const texto = await reconhecer(_rotacionarCanvas(base, -inclinacao));
-          const q = _qualidadeOCR(texto);
-          console.log(`[OCR web] ${baseGraus}° + inclinação ${inclinacao}°:`, q);
-          if (q.alnum > melhorQ.alnum && q.proporcao >= 0.5) { melhorTexto = texto; melhorQ = q; }
-          if (boaLeitura(melhorQ)) break;
-        }
-      }
-
-      if (!melhorTexto.trim()) throw new Error('OCR web: nenhum texto detectado');
-      return melhorTexto;
+      if (!melhor.texto.trim()) throw new Error('OCR web: nenhum texto detectado');
+      return melhor.texto;
     }
 
     // ─── Barcode via BarcodeScanner ──────────────────────────────────────────────
