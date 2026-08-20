@@ -1238,16 +1238,25 @@
       return canvas;
     }
 
-    // Gira um canvas em 90/180/270° — usado pra testar as 4 orientações
-    // possíveis da foto no OCR web (ver rodarOCRWeb).
-    function _rotacionarCanvas(canvasOrigem, graus) {
-      const trocaEixos = graus === 90 || graus === 270;
+    // Gira um canvas em qualquer ângulo — usado pra testar várias orientações
+    // possíveis da foto no OCR web (ver rodarOCRWeb). O canvas de saída é
+    // redimensionado pra caber a imagem inteira girada (bounding box), com
+    // fundo branco nas sobras (etiqueta é papel branco, não atrapalha o OCR).
+    function _rotacionarCanvas(canvasOrigem, anguloGraus) {
+      const rad = (anguloGraus * Math.PI) / 180;
+      const cos = Math.abs(Math.cos(rad));
+      const sin = Math.abs(Math.sin(rad));
+      const novaLargura = Math.round(canvasOrigem.width * cos + canvasOrigem.height * sin);
+      const novaAltura = Math.round(canvasOrigem.width * sin + canvasOrigem.height * cos);
+
       const canvas = document.createElement('canvas');
-      canvas.width = trocaEixos ? canvasOrigem.height : canvasOrigem.width;
-      canvas.height = trocaEixos ? canvasOrigem.width : canvasOrigem.height;
+      canvas.width = novaLargura;
+      canvas.height = novaAltura;
       const ctx = canvas.getContext('2d');
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate(graus * Math.PI / 180);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, novaLargura, novaAltura);
+      ctx.translate(novaLargura / 2, novaAltura / 2);
+      ctx.rotate(rad);
       ctx.drawImage(canvasOrigem, -canvasOrigem.width / 2, -canvasOrigem.height / 2);
       return canvas;
     }
@@ -1452,16 +1461,44 @@
       }
 
       let melhor = await reconhecer(canvasOcr);
+      let melhorAngulo = 0;
       console.log('[OCR web] 0°: confiança', melhor.confianca);
 
-      // Testa as outras 3 orientações possíveis (celular deitado ou de
-      // cabeça pra baixo) e fica com a de maior confiança.
+      // 1. Orientações naturais (celular deitado ou de cabeça pra baixo) —
+      // caso mais comum, testado primeiro.
       if (melhor.confianca < 60) {
         for (const graus of [90, 180, 270]) {
           const r = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
           console.log(`[OCR web] ${graus}°: confiança`, r.confianca);
-          if (r.confianca > melhor.confianca) melhor = r;
+          if (r.confianca > melhor.confianca) { melhor = r; melhorAngulo = graus; }
           if (melhor.confianca >= 80) break;
+        }
+      }
+
+      // 2. Foto tirada torta em qualquer ângulo (não múltiplo de 90°) — varre
+      // o círculo inteiro de 30 em 30 graus usando a confiança real do
+      // Tesseract, depois refina em passos menores ao redor do melhor ângulo
+      // encontrado. Mais lento (pode chegar a ~15 tentativas), mas só entra
+      // em ação quando as tentativas anteriores falharam.
+      if (melhor.confianca < 60) {
+        for (let graus = 30; graus < 360; graus += 30) {
+          if (graus === 90 || graus === 180 || graus === 270) continue; // já testado
+          const r = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
+          console.log(`[OCR web] ${graus}°: confiança`, r.confianca);
+          if (r.confianca > melhor.confianca) { melhor = r; melhorAngulo = graus; }
+          if (melhor.confianca >= 80) break;
+        }
+
+        // Refino fino ao redor do melhor ângulo encontrado na varredura
+        // grossa, caso a leitura tenha melhorado mas ainda não esteja ótima.
+        if (melhor.confianca >= 30 && melhor.confianca < 80) {
+          for (const ajuste of [-15, -20, 15, 20]) {
+            const graus = melhorAngulo + ajuste;
+            const r = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
+            console.log(`[OCR web] ${graus}° (refino): confiança`, r.confianca);
+            if (r.confianca > melhor.confianca) melhor = r;
+            if (melhor.confianca >= 80) break;
+          }
         }
       }
 
