@@ -1523,26 +1523,37 @@
       let melhorQ = _qualidadeOCR(melhorTexto);
       console.log('[OCR web] 0°:', melhorQ);
 
-      // Resultado com poucos caracteres reais ou muito ruído (símbolos) — a
-      // foto provavelmente saiu torta (celular deitado, ou em qualquer ângulo,
-      // não só múltiplo de 90°). Detecta a inclinação fina e endireita antes
-      // de tentar as 4 rotações "redondas" em cima do resultado já corrigido.
-      if (melhorQ.alnum < 25 || melhorQ.proporcao < 0.55) {
-        const inclinacao = detectarAnguloInclinacao(canvasOcr);
-        const canvasDesinclinado = Math.abs(inclinacao) >= 1
-          ? _rotacionarCanvas(canvasOcr, -inclinacao)
-          : canvasOcr;
-        console.log('[OCR web] inclinação detectada:', inclinacao, '°');
+      const boaLeitura = (q) => q.alnum > 40 && q.proporcao > 0.8;
+      const leituraFraca = (q) => q.alnum < 25 || q.proporcao < 0.55;
 
-        for (const graus of [0, 90, 180, 270]) {
-          const texto = await reconhecer(_rotacionarCanvas(canvasDesinclinado, graus));
+      // 1. Rotações "redondas" (90/180/270) direto na imagem original — cobre
+      // o caso mais comum (celular deitado/de cabeça pra baixo), sem nenhuma
+      // correção fina no meio do caminho que possa desalinhar o que já é
+      // um múltiplo exato de 90°.
+      if (leituraFraca(melhorQ)) {
+        for (const graus of [90, 180, 270]) {
+          const texto = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
           const q = _qualidadeOCR(texto);
-          console.log(`[OCR web] desinclinado + ${graus}°:`, q);
-          if (q.alnum > melhorQ.alnum && q.proporcao >= 0.5) {
-            melhorTexto = texto;
-            melhorQ = q;
-          }
-          if (melhorQ.alnum > 40 && melhorQ.proporcao > 0.8) break; // já achou boa leitura
+          console.log(`[OCR web] ${graus}°:`, q);
+          if (q.alnum > melhorQ.alnum && q.proporcao >= 0.5) { melhorTexto = texto; melhorQ = q; }
+          if (boaLeitura(melhorQ)) break;
+        }
+      }
+
+      // 2. Se ainda fraco, a foto pode estar torta num ângulo qualquer (não
+      // múltiplo de 90°) — testa as 4 orientações base e, em cada uma, detecta
+      // e corrige a inclinação fina (-45° a +45°) antes de reconhecer. Cobre
+      // qualquer ângulo de captura, sem depender de acertar de primeira.
+      if (leituraFraca(melhorQ)) {
+        for (const baseGraus of [0, 90, 180, 270]) {
+          const base = baseGraus === 0 ? canvasOcr : _rotacionarCanvas(canvasOcr, baseGraus);
+          const inclinacao = detectarAnguloInclinacao(base);
+          if (Math.abs(inclinacao) < 1) continue; // sem inclinação fina, já coberto no passo 1
+          const texto = await reconhecer(_rotacionarCanvas(base, -inclinacao));
+          const q = _qualidadeOCR(texto);
+          console.log(`[OCR web] ${baseGraus}° + inclinação ${inclinacao}°:`, q);
+          if (q.alnum > melhorQ.alnum && q.proporcao >= 0.5) { melhorTexto = texto; melhorQ = q; }
+          if (boaLeitura(melhorQ)) break;
         }
       }
 
