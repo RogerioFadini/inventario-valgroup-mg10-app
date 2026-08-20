@@ -1238,19 +1238,107 @@
       return canvas;
     }
 
+    // Detecta o ângulo fino de inclinação da foto (-45° a +45°)
+    function detectarAnguloInclinacao(canvasSrc) {
+      const ctx = canvasSrc.getContext('2d');
+      const width = canvasSrc.width;
+      const height = canvasSrc.height;
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const data = imgData.data;
+
+      let melhorAngulo = 0;
+      let maiorVariancia = -1;
+
+      for (let angulo = -45; angulo <= 45; angulo += 2) {
+        const rad = (angulo * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+
+        const projecao = new Float32Array(height);
+
+        for (let y = 0; y < height; y += 4) {
+          for (let x = 0; x < width; x += 4) {
+            const i = (y * width + x) * 4;
+            const luminancia = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+
+            if (luminancia < 128) {
+              const newY = Math.round(-x * sin + y * cos);
+              if (newY >= 0 && newY < height) {
+                projecao[newY]++;
+              }
+            }
+          }
+        }
+
+        let soma = 0;
+        for (let i = 0; i < height; i++) soma += projecao[i];
+        const media = soma / height;
+
+        let variancia = 0;
+        for (let i = 0; i < height; i++) {
+          variancia += Math.pow(projecao[i] - media, 2);
+        }
+
+        if (variancia > maiorVariancia) {
+          maiorVariancia = variancia;
+          melhorAngulo = angulo;
+        }
+      }
+
+      return melhorAngulo;
+    }
+
+    // Executa a chamada do plugin nativo CapacitorOcr
+    async function executarCapacitorOcr(OCR, base64Img, foto) {
+      const tentativas = [
+        { base64: base64Img },
+        { base64String: base64Img },
+        { image: base64Img }
+      ];
+
+      for (const payload of tentativas) {
+        try {
+          const r = await OCR.detectText(payload);
+          let texto = '';
+          if (r?.textDetections) texto = r.textDetections.map(b => b.text).join('\n');
+          else if (r?.blocks) texto = r.blocks.map(b => b.lines ? b.lines.map(l => l.text).join('\n') : b.text ?? '').join('\n');
+          else if (r?.text) texto = r.text;
+          else if (r?.result) texto = r.result;
+          else if (typeof r === 'string') texto = r;
+
+          if (texto.trim()) return texto;
+        } catch (e) {
+          console.warn('[OCR] tentativa falhou:', e.message);
+        }
+      }
+      return '';
+    }
+
     // Gira um canvas em 90/180/270°. Fotos tiradas com o celular deitado
     // (paisagem) deixam o texto da etiqueta de lado, e o Tesseract não gira
     // sozinho pra ler texto rotacionado — ver rodarOCRWeb.
-    function _rotacionarCanvas(canvasOrigem, graus) {
-      const trocaEixos = graus === 90 || graus === 270;
-      const canvas = document.createElement('canvas');
-      canvas.width = trocaEixos ? canvasOrigem.height : canvasOrigem.width;
-      canvas.height = trocaEixos ? canvasOrigem.width : canvasOrigem.height;
-      const ctx = canvas.getContext('2d');
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate(graus * Math.PI / 180);
-      ctx.drawImage(canvasOrigem, -canvasOrigem.width / 2, -canvasOrigem.height / 2);
-      return canvas;
+    function _rotacionarCanvas(canvasOriginal, anguloGraus) {
+      const rad = (anguloGraus * Math.PI) / 180;
+      const cos = Math.abs(Math.cos(rad));
+      const sin = Math.abs(Math.sin(rad));
+
+      const newWidth = canvasOriginal.width * cos + canvasOriginal.height * sin;
+      const newHeight = canvasOriginal.width * sin + canvasOriginal.height * cos;
+
+      const canvasRot = document.createElement('canvas');
+      canvasRot.width = newWidth;
+      canvasRot.height = newHeight;
+
+      const ctx = canvasRot.getContext('2d');
+      
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, newWidth, newHeight);
+
+      ctx.translate(newWidth / 2, newHeight / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(canvasOriginal, -canvasOriginal.width / 2, -canvasOriginal.height / 2);
+
+      return canvasRot;
     }
 
     // Estima se um texto de OCR "parece real": conta caracteres alfanuméricos
@@ -1400,41 +1488,45 @@
     // ─── OCR via CapacitorOcr ─────────────────────────────────────────────────────
     async function rodarOCR(foto, base64, canvasOcr) {
       const OCR = window?.Capacitor?.Plugins?.CapacitorOcr;
+
+      if (!canvasOcr && foto?.webPath) {
+        try {
+          const resp = await fetch(foto.webPath);
+          const blob = await resp.blob();
+          canvasOcr = await _imageFileParaCanvas(blob, 1500);
+        } catch (e) {
+          console.warn('[OCR] Erro ao converter foto para Canvas:', e);
+        }
+      }
+
       if (!OCR) return rodarOCRWeb(canvasOcr);
 
-      // 1. Tenta a leitura no ângulo original (0°)
+      // 1. Tenta leitura rápida na posição normal (0°)
       let melhorTexto = await executarCapacitorOcr(OCR, base64, foto);
       let melhorQ = _qualidadeOCR(melhorTexto);
 
-      // 2. Se não leu nada ou o texto veio com muito ruído (pouco texto alfanumérico), tenta girar
-      if (melhorQ.alnum < 25 || melhorQ.proporcao < 0.55) {
-        let canvasBase = canvasOcr;
+      if (melhorQ.alnum > 30 && melhorQ.proporcao > 0.7) {
+        return melhorTexto;
+      }
 
-        // Se o canvas ainda não foi gerado (como no fluxo nativo), cria a partir do webPath
-        if (!canvasBase && foto.webPath) {
-          try {
-            const resp = await fetch(foto.webPath);
-            const blob = await resp.blob();
-            canvasBase = await _imageFileParaCanvas(blob, 2000);
-          } catch (e) {
-            console.warn('[OCR] Não foi possível converter foto em Canvas para rotação:', e);
+      // 2. Se a leitura foi fraca, detecta rotação/inclinação e tenta nos eixos
+      if (canvasOcr) {
+        const inclinacao = detectarAnguloInclinacao(canvasOcr);
+        const canvasDesinclinado = _rotacionarCanvas(canvasOcr, -inclinacao);
+
+        for (const graus of [0, 90, 180, 270]) {
+          const canvasGiro = _rotacionarCanvas(canvasDesinclinado, graus);
+          const base64Giro = _canvasParaBase64(canvasGiro, 0.92);
+
+          const textoGiro = await executarCapacitorOcr(OCR, base64Giro, foto);
+          const qGiro = _qualidadeOCR(textoGiro);
+
+          if (qGiro.alnum > melhorQ.alnum && qGiro.proporcao >= 0.5) {
+            melhorTexto = textoGiro;
+            melhorQ = qGiro;
           }
-        }
 
-        if (canvasBase) {
-          const canvasTratado = _prepararCanvasParaOCR(canvasBase);
-
-          for (const graus of [90, 180, 270]) {
-            const canvasGiro = _rotacionarCanvas(canvasTratado, graus);
-            const base64Giro = _canvasParaBase64(canvasGiro, 0.95);
-            const textoGiro = await executarCapacitorOcr(OCR, base64Giro, foto);
-            const qGiro = _qualidadeOCR(textoGiro);
-
-            if (qGiro.alnum > melhorQ.alnum && qGiro.proporcao >= 0.5) {
-              melhorTexto = textoGiro;
-              melhorQ = qGiro;
-            }
-          }
+          if (melhorQ.alnum > 40 && melhorQ.proporcao > 0.8) break;
         }
       }
 
@@ -2341,31 +2433,6 @@
         raw = localStorage.getItem(FILA_KEY);
       }
       try { return raw ? JSON.parse(raw) : []; } catch (e) { return []; }
-    }
-
-    async function executarCapacitorOcr(OCR, base64Img, foto) {
-      const tentativas = [
-        { base64: base64Img },
-        { base64String: base64Img },
-        { image: base64Img }
-      ];
-
-      for (const payload of tentativas) {
-        try {
-          const r = await OCR.detectText(payload);
-          let texto = '';
-          if (r?.textDetections) texto = r.textDetections.map(b => b.text).join('\n');
-          else if (r?.blocks) texto = r.blocks.map(b => b.lines ? b.lines.map(l => l.text).join('\n') : b.text ?? '').join('\n');
-          else if (r?.text) texto = r.text;
-          else if (r?.result) texto = r.result;
-          else if (typeof r === 'string') texto = r;
-
-          if (texto.trim()) return texto;
-        } catch (e) {
-          console.warn('[OCR] tentativa falhou:', e.message);
-        }
-      }
-      return '';
     }
 
     async function setFila(fila) {
