@@ -1238,7 +1238,37 @@
       return canvas;
     }
 
-    // Detecta o ângulo fino de inclinação da foto (-45° a +45°)
+    // Gira um canvas em qualquer ângulo (não só múltiplos de 90°) — usado
+    // tanto pelas 4 rotações "redondas" (90/180/270) quanto pelo endireitamento
+    // fino de detectarAnguloInclinacao. O canvas de saída é redimensionado pra
+    // caber a imagem inteira girada (bounding box), com fundo branco nas
+    // sobras — etiqueta é papel branco, então isso não atrapalha o OCR.
+    function _rotacionarCanvas(canvasOrigem, anguloGraus) {
+      const rad = (anguloGraus * Math.PI) / 180;
+      const cos = Math.abs(Math.cos(rad));
+      const sin = Math.abs(Math.sin(rad));
+      const novaLargura = Math.round(canvasOrigem.width * cos + canvasOrigem.height * sin);
+      const novaAltura = Math.round(canvasOrigem.width * sin + canvasOrigem.height * cos);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = novaLargura;
+      canvas.height = novaAltura;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, novaLargura, novaAltura);
+      ctx.translate(novaLargura / 2, novaAltura / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(canvasOrigem, -canvasOrigem.width / 2, -canvasOrigem.height / 2);
+      return canvas;
+    }
+
+    // Detecta o ângulo fino de inclinação da foto (-45° a +45°, em passos de
+    // 2°): pra cada ângulo candidato, projeta os pixels escuros (texto) num
+    // eixo Y rotacionado e mede a variância dessa projeção — linhas de texto
+    // bem alinhadas horizontalmente produzem picos nítidos na projeção
+    // (variância alta); o ângulo com maior variância é a inclinação real da
+    // foto. Amostra 1 em cada 4 pixels pra ficar rápido o bastante pra rodar
+    // no celular.
     function detectarAnguloInclinacao(canvasSrc) {
       const ctx = canvasSrc.getContext('2d');
       const width = canvasSrc.width;
@@ -1260,12 +1290,9 @@
           for (let x = 0; x < width; x += 4) {
             const i = (y * width + x) * 4;
             const luminancia = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-
             if (luminancia < 128) {
               const newY = Math.round(-x * sin + y * cos);
-              if (newY >= 0 && newY < height) {
-                projecao[newY]++;
-              }
+              if (newY >= 0 && newY < height) projecao[newY]++;
             }
           }
         }
@@ -1275,9 +1302,7 @@
         const media = soma / height;
 
         let variancia = 0;
-        for (let i = 0; i < height; i++) {
-          variancia += Math.pow(projecao[i] - media, 2);
-        }
+        for (let i = 0; i < height; i++) variancia += (projecao[i] - media) ** 2;
 
         if (variancia > maiorVariancia) {
           maiorVariancia = variancia;
@@ -1286,59 +1311,6 @@
       }
 
       return melhorAngulo;
-    }
-
-    // Executa a chamada do plugin nativo CapacitorOcr
-    async function executarCapacitorOcr(OCR, base64Img, foto) {
-      const tentativas = [
-        { base64: base64Img },
-        { base64String: base64Img },
-        { image: base64Img }
-      ];
-
-      for (const payload of tentativas) {
-        try {
-          const r = await OCR.detectText(payload);
-          let texto = '';
-          if (r?.textDetections) texto = r.textDetections.map(b => b.text).join('\n');
-          else if (r?.blocks) texto = r.blocks.map(b => b.lines ? b.lines.map(l => l.text).join('\n') : b.text ?? '').join('\n');
-          else if (r?.text) texto = r.text;
-          else if (r?.result) texto = r.result;
-          else if (typeof r === 'string') texto = r;
-
-          if (texto.trim()) return texto;
-        } catch (e) {
-          console.warn('[OCR] tentativa falhou:', e.message);
-        }
-      }
-      return '';
-    }
-
-    // Gira um canvas em 90/180/270°. Fotos tiradas com o celular deitado
-    // (paisagem) deixam o texto da etiqueta de lado, e o Tesseract não gira
-    // sozinho pra ler texto rotacionado — ver rodarOCRWeb.
-    function _rotacionarCanvas(canvasOriginal, anguloGraus) {
-      const rad = (anguloGraus * Math.PI) / 180;
-      const cos = Math.abs(Math.cos(rad));
-      const sin = Math.abs(Math.sin(rad));
-
-      const newWidth = canvasOriginal.width * cos + canvasOriginal.height * sin;
-      const newHeight = canvasOriginal.width * sin + canvasOriginal.height * cos;
-
-      const canvasRot = document.createElement('canvas');
-      canvasRot.width = newWidth;
-      canvasRot.height = newHeight;
-
-      const ctx = canvasRot.getContext('2d');
-      
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, newWidth, newHeight);
-
-      ctx.translate(newWidth / 2, newHeight / 2);
-      ctx.rotate(rad);
-      ctx.drawImage(canvasOriginal, -canvasOriginal.width / 2, -canvasOriginal.height / 2);
-
-      return canvasRot;
     }
 
     // Estima se um texto de OCR "parece real": conta caracteres alfanuméricos
@@ -1488,50 +1460,35 @@
     // ─── OCR via CapacitorOcr ─────────────────────────────────────────────────────
     async function rodarOCR(foto, base64, canvasOcr) {
       const OCR = window?.Capacitor?.Plugins?.CapacitorOcr;
-
-      if (!canvasOcr && foto?.webPath) {
-        try {
-          const resp = await fetch(foto.webPath);
-          const blob = await resp.blob();
-          canvasOcr = await _imageFileParaCanvas(blob, 1500);
-        } catch (e) {
-          console.warn('[OCR] Erro ao converter foto para Canvas:', e);
-        }
-      }
-
       if (!OCR) return rodarOCRWeb(canvasOcr);
 
-      // 1. Tenta leitura rápida na posição normal (0°)
-      let melhorTexto = await executarCapacitorOcr(OCR, base64, foto);
-      let melhorQ = _qualidadeOCR(melhorTexto);
+      const tentativas = [
+        { base64: base64 },
+        { base64String: base64 },
+        { image: base64 },
+        { imagePath: foto.path?.replace(/^file:\/\//, '') },
+        { imagePath: foto.path },
+      ];
 
-      if (melhorQ.alnum > 30 && melhorQ.proporcao > 0.7) {
-        return melhorTexto;
-      }
+      for (const payload of tentativas) {
+        try {
+          const r = await OCR.detectText(payload);
+          console.log('[OCR] sucesso com param:', Object.keys(payload)[0]);
 
-      // 2. Se a leitura foi fraca, detecta rotação/inclinação e tenta nos eixos
-      if (canvasOcr) {
-        const inclinacao = detectarAnguloInclinacao(canvasOcr);
-        const canvasDesinclinado = _rotacionarCanvas(canvasOcr, -inclinacao);
+          let texto = '';
+          if (r?.textDetections) texto = r.textDetections.map(b => b.text).join('\n');
+          else if (r?.blocks) texto = r.blocks.map(b => b.lines ? b.lines.map(l => l.text).join('\n') : b.text ?? '').join('\n');
+          else if (r?.text) texto = r.text;
+          else if (r?.result) texto = r.result;
+          else if (typeof r === 'string') texto = r;
 
-        for (const graus of [0, 90, 180, 270]) {
-          const canvasGiro = _rotacionarCanvas(canvasDesinclinado, graus);
-          const base64Giro = _canvasParaBase64(canvasGiro, 0.92);
-
-          const textoGiro = await executarCapacitorOcr(OCR, base64Giro, foto);
-          const qGiro = _qualidadeOCR(textoGiro);
-
-          if (qGiro.alnum > melhorQ.alnum && qGiro.proporcao >= 0.5) {
-            melhorTexto = textoGiro;
-            melhorQ = qGiro;
-          }
-
-          if (melhorQ.alnum > 40 && melhorQ.proporcao > 0.8) break;
+          if (texto.trim()) return texto;
+        } catch (e) {
+          console.warn('[OCR] falhou com', Object.keys(payload)[0], '→', e.message);
         }
       }
 
-      if (!melhorTexto.trim()) throw new Error('CapacitorOcr: nenhum texto detectado');
-      return melhorTexto;
+      throw new Error('CapacitorOcr: nenhum parâmetro funcionou');
     }
 
     // ─── OCR via Tesseract.js (fallback web, 100% client-side/offline) ───────────
@@ -1566,18 +1523,26 @@
       let melhorQ = _qualidadeOCR(melhorTexto);
       console.log('[OCR web] 0°:', melhorQ);
 
-      // Resultado com poucos caracteres reais ou muito ruído (símbolos) —
-      // provavelmente a foto foi tirada com o celular deitado e o texto da
-      // etiqueta saiu de lado. Tenta girar e refazer.
+      // Resultado com poucos caracteres reais ou muito ruído (símbolos) — a
+      // foto provavelmente saiu torta (celular deitado, ou em qualquer ângulo,
+      // não só múltiplo de 90°). Detecta a inclinação fina e endireita antes
+      // de tentar as 4 rotações "redondas" em cima do resultado já corrigido.
       if (melhorQ.alnum < 25 || melhorQ.proporcao < 0.55) {
-        for (const graus of [90, 180, 270]) {
-          const texto = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
+        const inclinacao = detectarAnguloInclinacao(canvasOcr);
+        const canvasDesinclinado = Math.abs(inclinacao) >= 1
+          ? _rotacionarCanvas(canvasOcr, -inclinacao)
+          : canvasOcr;
+        console.log('[OCR web] inclinação detectada:', inclinacao, '°');
+
+        for (const graus of [0, 90, 180, 270]) {
+          const texto = await reconhecer(_rotacionarCanvas(canvasDesinclinado, graus));
           const q = _qualidadeOCR(texto);
-          console.log(`[OCR web] ${graus}°:`, q);
+          console.log(`[OCR web] desinclinado + ${graus}°:`, q);
           if (q.alnum > melhorQ.alnum && q.proporcao >= 0.5) {
             melhorTexto = texto;
             melhorQ = q;
           }
+          if (melhorQ.alnum > 40 && melhorQ.proporcao > 0.8) break; // já achou boa leitura
         }
       }
 

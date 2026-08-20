@@ -1238,19 +1238,79 @@
       return canvas;
     }
 
-    // Gira um canvas em 90/180/270°. Fotos tiradas com o celular deitado
-    // (paisagem) deixam o texto da etiqueta de lado, e o Tesseract não gira
-    // sozinho pra ler texto rotacionado — ver rodarOCRWeb.
-    function _rotacionarCanvas(canvasOrigem, graus) {
-      const trocaEixos = graus === 90 || graus === 270;
+    // Gira um canvas em qualquer ângulo (não só múltiplos de 90°) — usado
+    // tanto pelas 4 rotações "redondas" (90/180/270) quanto pelo endireitamento
+    // fino de detectarAnguloInclinacao. O canvas de saída é redimensionado pra
+    // caber a imagem inteira girada (bounding box), com fundo branco nas
+    // sobras — etiqueta é papel branco, então isso não atrapalha o OCR.
+    function _rotacionarCanvas(canvasOrigem, anguloGraus) {
+      const rad = (anguloGraus * Math.PI) / 180;
+      const cos = Math.abs(Math.cos(rad));
+      const sin = Math.abs(Math.sin(rad));
+      const novaLargura = Math.round(canvasOrigem.width * cos + canvasOrigem.height * sin);
+      const novaAltura = Math.round(canvasOrigem.width * sin + canvasOrigem.height * cos);
+
       const canvas = document.createElement('canvas');
-      canvas.width = trocaEixos ? canvasOrigem.height : canvasOrigem.width;
-      canvas.height = trocaEixos ? canvasOrigem.width : canvasOrigem.height;
+      canvas.width = novaLargura;
+      canvas.height = novaAltura;
       const ctx = canvas.getContext('2d');
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate(graus * Math.PI / 180);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, novaLargura, novaAltura);
+      ctx.translate(novaLargura / 2, novaAltura / 2);
+      ctx.rotate(rad);
       ctx.drawImage(canvasOrigem, -canvasOrigem.width / 2, -canvasOrigem.height / 2);
       return canvas;
+    }
+
+    // Detecta o ângulo fino de inclinação da foto (-45° a +45°, em passos de
+    // 2°): pra cada ângulo candidato, projeta os pixels escuros (texto) num
+    // eixo Y rotacionado e mede a variância dessa projeção — linhas de texto
+    // bem alinhadas horizontalmente produzem picos nítidos na projeção
+    // (variância alta); o ângulo com maior variância é a inclinação real da
+    // foto. Amostra 1 em cada 4 pixels pra ficar rápido o bastante pra rodar
+    // no celular.
+    function detectarAnguloInclinacao(canvasSrc) {
+      const ctx = canvasSrc.getContext('2d');
+      const width = canvasSrc.width;
+      const height = canvasSrc.height;
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const data = imgData.data;
+
+      let melhorAngulo = 0;
+      let maiorVariancia = -1;
+
+      for (let angulo = -45; angulo <= 45; angulo += 2) {
+        const rad = (angulo * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+
+        const projecao = new Float32Array(height);
+
+        for (let y = 0; y < height; y += 4) {
+          for (let x = 0; x < width; x += 4) {
+            const i = (y * width + x) * 4;
+            const luminancia = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            if (luminancia < 128) {
+              const newY = Math.round(-x * sin + y * cos);
+              if (newY >= 0 && newY < height) projecao[newY]++;
+            }
+          }
+        }
+
+        let soma = 0;
+        for (let i = 0; i < height; i++) soma += projecao[i];
+        const media = soma / height;
+
+        let variancia = 0;
+        for (let i = 0; i < height; i++) variancia += (projecao[i] - media) ** 2;
+
+        if (variancia > maiorVariancia) {
+          maiorVariancia = variancia;
+          melhorAngulo = angulo;
+        }
+      }
+
+      return melhorAngulo;
     }
 
     // Estima se um texto de OCR "parece real": conta caracteres alfanuméricos
@@ -1463,18 +1523,26 @@
       let melhorQ = _qualidadeOCR(melhorTexto);
       console.log('[OCR web] 0°:', melhorQ);
 
-      // Resultado com poucos caracteres reais ou muito ruído (símbolos) —
-      // provavelmente a foto foi tirada com o celular deitado e o texto da
-      // etiqueta saiu de lado. Tenta girar e refazer.
+      // Resultado com poucos caracteres reais ou muito ruído (símbolos) — a
+      // foto provavelmente saiu torta (celular deitado, ou em qualquer ângulo,
+      // não só múltiplo de 90°). Detecta a inclinação fina e endireita antes
+      // de tentar as 4 rotações "redondas" em cima do resultado já corrigido.
       if (melhorQ.alnum < 25 || melhorQ.proporcao < 0.55) {
-        for (const graus of [90, 180, 270]) {
-          const texto = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
+        const inclinacao = detectarAnguloInclinacao(canvasOcr);
+        const canvasDesinclinado = Math.abs(inclinacao) >= 1
+          ? _rotacionarCanvas(canvasOcr, -inclinacao)
+          : canvasOcr;
+        console.log('[OCR web] inclinação detectada:', inclinacao, '°');
+
+        for (const graus of [0, 90, 180, 270]) {
+          const texto = await reconhecer(_rotacionarCanvas(canvasDesinclinado, graus));
           const q = _qualidadeOCR(texto);
-          console.log(`[OCR web] ${graus}°:`, q);
+          console.log(`[OCR web] desinclinado + ${graus}°:`, q);
           if (q.alnum > melhorQ.alnum && q.proporcao >= 0.5) {
             melhorTexto = texto;
             melhorQ = q;
           }
+          if (melhorQ.alnum > 40 && melhorQ.proporcao > 0.8) break; // já achou boa leitura
         }
       }
 
