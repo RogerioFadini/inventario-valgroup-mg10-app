@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Valgroup MG10</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1a2855">
@@ -47,6 +47,7 @@
       font-family: 'Inter', sans-serif;
       font-size: 14px;
       min-height: 100vh;
+      touch-action: manipulation;
     }
 
     header {
@@ -2078,6 +2079,13 @@
         erroEl.style.display = 'block';
       }
     }
+
+    // Bloqueia o gesto de pinça (pinch-to-zoom) do Safari iOS — a meta tag
+    // viewport com user-scalable=no cobre a maioria dos casos, mas o Safari
+    // historicamente ainda dispara esses eventos proprietários em alguns
+    // cenários. Em outros navegadores esses eventos simplesmente não existem.
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
+    document.addEventListener('gesturechange', (e) => e.preventDefault());
 
     // ─── PWA: Service Worker + aviso de instalação (só fora do Capacitor) ─────────
     // O SW só faz sentido rodando como site — dentro da WebView do Capacitor os
