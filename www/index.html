@@ -1402,33 +1402,44 @@
       const OCR = window?.Capacitor?.Plugins?.CapacitorOcr;
       if (!OCR) return rodarOCRWeb(canvasOcr);
 
-      const tentativas = [
-        { base64: base64 },
-        { base64String: base64 },
-        { image: base64 },
-        { imagePath: foto.path?.replace(/^file:\/\//, '') },
-        { imagePath: foto.path },
-      ];
+      // 1. Tenta a leitura no ângulo original (0°)
+      let melhorTexto = await executarCapacitorOcr(OCR, base64, foto);
+      let melhorQ = _qualidadeOCR(melhorTexto);
 
-      for (const payload of tentativas) {
-        try {
-          const r = await OCR.detectText(payload);
-          console.log('[OCR] sucesso com param:', Object.keys(payload)[0]);
+      // 2. Se não leu nada ou o texto veio com muito ruído (pouco texto alfanumérico), tenta girar
+      if (melhorQ.alnum < 25 || melhorQ.proporcao < 0.55) {
+        let canvasBase = canvasOcr;
 
-          let texto = '';
-          if (r?.textDetections) texto = r.textDetections.map(b => b.text).join('\n');
-          else if (r?.blocks) texto = r.blocks.map(b => b.lines ? b.lines.map(l => l.text).join('\n') : b.text ?? '').join('\n');
-          else if (r?.text) texto = r.text;
-          else if (r?.result) texto = r.result;
-          else if (typeof r === 'string') texto = r;
+        // Se o canvas ainda não foi gerado (como no fluxo nativo), cria a partir do webPath
+        if (!canvasBase && foto.webPath) {
+          try {
+            const resp = await fetch(foto.webPath);
+            const blob = await resp.blob();
+            canvasBase = await _imageFileParaCanvas(blob, 2000);
+          } catch (e) {
+            console.warn('[OCR] Não foi possível converter foto em Canvas para rotação:', e);
+          }
+        }
 
-          if (texto.trim()) return texto;
-        } catch (e) {
-          console.warn('[OCR] falhou com', Object.keys(payload)[0], '→', e.message);
+        if (canvasBase) {
+          const canvasTratado = _prepararCanvasParaOCR(canvasBase);
+
+          for (const graus of [90, 180, 270]) {
+            const canvasGiro = _rotacionarCanvas(canvasTratado, graus);
+            const base64Giro = _canvasParaBase64(canvasGiro, 0.95);
+            const textoGiro = await executarCapacitorOcr(OCR, base64Giro, foto);
+            const qGiro = _qualidadeOCR(textoGiro);
+
+            if (qGiro.alnum > melhorQ.alnum && qGiro.proporcao >= 0.5) {
+              melhorTexto = textoGiro;
+              melhorQ = qGiro;
+            }
+          }
         }
       }
 
-      throw new Error('CapacitorOcr: nenhum parâmetro funcionou');
+      if (!melhorTexto.trim()) throw new Error('CapacitorOcr: nenhum texto detectado');
+      return melhorTexto;
     }
 
     // ─── OCR via Tesseract.js (fallback web, 100% client-side/offline) ───────────
@@ -2330,6 +2341,31 @@
         raw = localStorage.getItem(FILA_KEY);
       }
       try { return raw ? JSON.parse(raw) : []; } catch (e) { return []; }
+    }
+
+    async function executarCapacitorOcr(OCR, base64Img, foto) {
+      const tentativas = [
+        { base64: base64Img },
+        { base64String: base64Img },
+        { image: base64Img }
+      ];
+
+      for (const payload of tentativas) {
+        try {
+          const r = await OCR.detectText(payload);
+          let texto = '';
+          if (r?.textDetections) texto = r.textDetections.map(b => b.text).join('\n');
+          else if (r?.blocks) texto = r.blocks.map(b => b.lines ? b.lines.map(l => l.text).join('\n') : b.text ?? '').join('\n');
+          else if (r?.text) texto = r.text;
+          else if (r?.result) texto = r.result;
+          else if (typeof r === 'string') texto = r;
+
+          if (texto.trim()) return texto;
+        } catch (e) {
+          console.warn('[OCR] tentativa falhou:', e.message);
+        }
+      }
+      return '';
     }
 
     async function setFila(fila) {
