@@ -1265,7 +1265,7 @@
     async function fotografarEtiqueta() {
       try {
         const Camera = window?.Capacitor?.Plugins?.Camera;
-        let foto, base64, base64Barcode, canvasOcr = null;
+        let foto, base64, base64Barcode, canvasOcr = null, canvasColorido = null;
 
         if (Camera) {
           foto = await Camera.getPhoto({
@@ -1293,6 +1293,7 @@
           // recebe, além disso, escala de cinza + contraste — ver
           // _prepararCanvasParaOCR).
           const canvasBase = await _imageFileParaCanvas(file, 2000);
+          canvasColorido = canvasBase;
           canvasOcr = _prepararCanvasParaOCR(canvasBase);
           base64Barcode = _canvasParaBase64(canvasBase);
           base64 = _canvasParaBase64(canvasOcr, 0.95);
@@ -1302,7 +1303,7 @@
         setAiStatus(true, 'Lendo QR Code e texto da etiqueta...');
 
         const [resultadoOCR, resultadoQR] = await Promise.allSettled([
-          rodarOCR(foto, base64, canvasOcr),
+          rodarOCR(foto, base64, canvasOcr, canvasColorido),
           rodarBarcode(foto, base64Barcode)
         ]);
 
@@ -1396,9 +1397,22 @@
 }
 
     // ─── OCR via CapacitorOcr ─────────────────────────────────────────────────────
-    async function rodarOCR(foto, base64, canvasOcr) {
+    async function rodarOCR(foto, base64, canvasOcr, canvasColorido) {
       const OCR = window?.Capacitor?.Plugins?.CapacitorOcr;
-      if (!OCR) return rodarOCRWeb(canvasOcr);
+      if (!OCR) {
+        // PaddleOCR primeiro: detecta cada linha de texto com sua própria
+        // orientação, então lida com qualquer ângulo de foto sem precisar de
+        // rotação manual. Se falhar por qualquer motivo (ex: bug conhecido de
+        // carregamento WASM em alguns Safari/iOS — sem contorno disponível),
+        // cai pro Tesseract local, que sempre funciona.
+        try {
+          const texto = await rodarOCRPaddle(canvasColorido ?? canvasOcr);
+          if (texto && texto.trim()) return texto;
+        } catch (e) {
+          console.warn('[OCR] PaddleOCR indisponível, usando Tesseract:', e.message);
+        }
+        return rodarOCRWeb(canvasOcr);
+      }
 
       const tentativas = [
         { base64: base64 },
@@ -1447,6 +1461,68 @@
         cacheMethod: 'none' // nunca lê/grava no IndexedDB, sempre usa o arquivo local
       });
       return _tesseractWorker;
+    }
+
+    // ─── OCR via PaddleOCR (open source, roda 100% no navegador via ONNX Runtime
+    // Web, vendorizado localmente em vendor/paddleocr/) ────────────────────────────
+    // Detecta cada linha de texto com sua própria orientação (retorna
+    // quadriláteros, não caixas retas), então lida com foto em qualquer ângulo
+    // nativamente — diferente do Tesseract, que só lê texto já na posição
+    // correta. Carregado só sob demanda (nunca no boot da página); os ~52MB de
+    // modelos/runtime não entram no precache do Service Worker por serem
+    // pesados, ficam em cache normal (stale-while-revalidate) após o 1º uso.
+    //
+    // Risco conhecido e sem contorno de configuração: há um bug documentado no
+    // ONNX Runtime Web que falha ao carregar especificamente em alguns
+    // Safari/iOS. Por isso rodarOCRPaddle pode lançar erro — quem chama
+    // (rodarOCR) trata isso caindo pro Tesseract local automaticamente.
+    let _paddleOcrPromise = null;
+
+    function carregarBibliotecasPaddleOCR() {
+      // clipper-lib e opencv.js são scripts UMD clássicos (definem
+      // window.ClipperLib/window.cv) — precisam carregar como <script>
+      // normal, antes do import() do bundle principal, que espera esses
+      // globals já definidos (ver os arquivos *-shim.mjs).
+      const base = new URL('vendor/paddleocr/', document.baseURI).href;
+      return Promise.all([
+        carregarScript(base + 'clipper-lib/clipper.js'),
+        carregarScript(base + 'opencv-js/opencv.js')
+      ]);
+    }
+
+    async function _getPaddleOcr() {
+      if (_paddleOcrPromise) return _paddleOcrPromise;
+      _paddleOcrPromise = (async () => {
+        await carregarBibliotecasPaddleOCR();
+        const base = new URL('vendor/paddleocr/', document.baseURI).href;
+        const { PaddleOCR } = await import(base + 'paddleocr-js/index.mjs');
+        return PaddleOCR.create({
+          lang: 'pt',
+          ocrVersion: 'PP-OCRv6',
+          textDetectionModelName: 'PP-OCRv6_small_det',
+          textDetectionModelAsset: { url: base + 'models/PP-OCRv6_small_det_onnx_infer.tar' },
+          textRecognitionModelName: 'PP-OCRv6_small_rec',
+          textRecognitionModelAsset: { url: base + 'models/PP-OCRv6_small_rec_onnx_infer.tar' },
+          ortOptions: {
+            // Forçado em "wasm" de propósito: no bug conhecido de iOS o
+            // WebGPU também não está disponível, então "auto" cairia no
+            // mesmo "wasm" mesmo — e não existe opção "webgl" aceita aqui.
+            backend: 'wasm',
+            wasmPaths: base + 'onnxruntime-web/',
+            numThreads: 1,
+            simd: true
+          }
+        });
+      })().catch(err => { _paddleOcrPromise = null; throw err; }); // não trava tentativas futuras se essa falhar
+      return _paddleOcrPromise;
+    }
+
+    async function rodarOCRPaddle(canvas) {
+      const ocr = await _getPaddleOcr();
+      const [resultado] = await ocr.predict(canvas);
+      const texto = (resultado?.items ?? []).map(i => i.text).filter(Boolean).join('\n');
+      if (!texto.trim()) throw new Error('PaddleOCR: nenhum texto detectado');
+      return texto;
     }
 
     async function rodarOCRWeb(canvasOcr) {
