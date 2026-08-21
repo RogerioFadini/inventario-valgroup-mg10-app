@@ -4,7 +4,7 @@
 //
 // Incremente CACHE_VERSION a cada deploy: isso invalida o cache antigo
 // automaticamente (activate abaixo apaga qualquer cache com nome diferente).
-const CACHE_VERSION = 'invmg10-v1';
+const CACHE_VERSION = 'invmg10-v2';
 const CACHE_NAME = `app-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `runtime-${CACHE_VERSION}`;
 
@@ -61,6 +61,26 @@ self.addEventListener('fetch', (event) => {
   // lidar com a falha — sem interferência do SW.
   if (url.hostname === 'api.github.com') {
     event.respondWith(fetch(request).catch(() => caches.match(request)));
+    return;
+  }
+
+  // O documento principal (index.html/navegação) muda a cada deploy durante
+  // o desenvolvimento — network-first, com o cache só como fallback pra
+  // funcionar offline. Sem isso, stale-while-revalidate sempre mostraria a
+  // versão de ANTES do deploy mais recente na primeira visita depois dele.
+  const ehDocumentoPrincipal = request.mode === 'navigate'
+    || url.pathname.endsWith('/index.html')
+    || url.pathname.endsWith('/');
+  if (ehDocumentoPrincipal) {
+    event.respondWith(
+      fetch(request)
+        .then((resposta) => {
+          const clone = resposta.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return resposta;
+        })
+        .catch(() => caches.match(request))
+    );
     return;
   }
 
