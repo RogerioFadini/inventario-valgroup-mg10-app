@@ -1,0 +1,3661 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Valgroup MG10</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a2855">
+  <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Inventário MG10">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap');
+
+    :root {
+      --bg: #000535;
+      --val: #1a2855;
+      --group: #1d8d3c;
+      --card: #1e2330;
+      --border: #2a3045;
+      --accent: #006810;
+      --accent2: #009e1a;
+      --text: #e8ecf4;
+      --muted: #7a859e;
+      --danger: #e05050;
+      --success: #3dc97a;
+      --input-bg: #252b3b;
+      --input-focus: #2e3650;
+      --site: #838383;
+      --r: 8px;
+      --rl: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+      touch-action: manipulation;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0a0d14, #181c25);
+      border-bottom: 2px solid var(--accent);
+      padding: 0 24px;
+      padding-top: max(0px, env(safe-area-inset-top));
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 24px #000a;
+    }
+
+    .hi {
+      max-width: 860px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-img {
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .logo-text {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      line-height: 1;
+    }
+
+    .logo-text .val { color: var(--val); }
+    .logo-text .group { color: var(--group); }
+    .logo-text span:last-child { color: var(--site); }
+    .logo-text span { color: var(--accent); }
+
+    .logo-sub {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 28px 20px 16px;
+    }
+
+    .ptitle {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ptitle::before {
+      content: '';
+      width: 3px;
+      height: 20px;
+      background: var(--accent);
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--rl);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .ctitle {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .g2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .g3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media(max-width:600px) {
+      .g2, .g3 { grid-template-columns: 1fr; }
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    .req { color: var(--accent); margin-left: 2px; }
+
+    input, select, textarea {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      padding: 10px 12px;
+      width: 100%;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      background: var(--input-focus);
+      box-shadow: 0 0 0 3px #00681022;
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a859e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+      cursor: pointer;
+    }
+
+    textarea { resize: vertical; min-height: 72px; }
+
+    input:disabled, select:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    .ai-filled {
+      border-color: var(--accent2) !important;
+      background: var(--input-focus) !important;
+      box-shadow: 0 0 0 3px #009e1a22 !important;
+      transition: all .4s ease;
+    }
+
+    .btn-sub {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--r);
+      color: #0a0d14;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 16px 40px;
+      width: 100%;
+      cursor: pointer;
+      transition: background .15s, transform .1s, box-shadow .15s;
+      box-shadow: 0 4px 20px #00681040;
+      margin-top: 8px;
+    }
+
+    .btn-sub:hover {
+      background: var(--accent2);
+      box-shadow: 0 6px 28px #00681060;
+      transform: translateY(-1px);
+    }
+
+    .btn-sub:active { transform: translateY(0); }
+
+    .btn-sub:disabled {
+      background: var(--border);
+      color: var(--muted);
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--rl);
+      padding: 14px 28px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 8px 32px #0008;
+      z-index: 9999;
+      transition: transform .3s ease, opacity .3s;
+      opacity: 0;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    #toast.success { border-color: var(--success); color: var(--success); }
+    #toast.error { border-color: var(--danger); color: var(--danger); }
+    #toast.info { border-color: var(--accent); color: var(--accent); }
+
+    #ov {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #0009;
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    #ov.show { display: flex; }
+
+    #configModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000a;
+      z-index: 600;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    #configModal.show { display: flex; }
+
+    .config-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--rl);
+      padding: 24px;
+      width: 100%;
+      max-width: 380px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    #editModal, #exportModal, #exportProntoModal, #itensEditorModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000a;
+      z-index: 600;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    #editModal.show, #exportModal.show, #exportProntoModal.show, #itensEditorModal.show { display: flex; }
+
+    .tabbar {
+      max-width: 860px;
+      margin: 0 auto;
+      display: flex;
+      gap: 8px;
+      padding: 16px 20px 0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      color: var(--muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 12px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+
+    .tab-btn.active {
+      border-color: var(--accent);
+      color: var(--accent2);
+    }
+
+    .lc-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .lc-info { font-size: 12.5px; line-height: 1.6; min-width: 0; overflow-wrap: anywhere; flex: 1; }
+    .lc-info b { color: var(--text); }
+    .lc-info span.muted { color: var(--muted); }
+
+    .lc-edit-btn {
+      flex-shrink: 0;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      color: var(--accent2);
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    #filtroOpcoes {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .filtro-opcao {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      text-align: left;
+    }
+
+    .filtro-opcao.active {
+      border-color: var(--accent);
+      background: var(--input-focus);
+    }
+
+    .filtro-radio {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--muted);
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .filtro-opcao.active .filtro-radio {
+      border-color: var(--accent2);
+    }
+
+    .filtro-opcao.active .filtro-radio::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border-radius: 50%;
+      background: var(--accent2);
+    }
+
+    .spin {
+      width: 44px;
+      height: 44px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: sp .7s linear infinite;
+    }
+
+    @keyframes sp { to { transform: rotate(360deg); } }
+
+    #ov p { color: var(--text); font-size: 14px; }
+
+    #ai-status {
+      display: none;
+      background: linear-gradient(90deg, #009e1a18, #006810 10%, #009e1a18);
+      border: 1px solid var(--accent);
+      border-radius: var(--r);
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      color: var(--accent2);
+      align-items: center;
+      gap: 10px;
+    }
+
+    #ai-status.show { display: flex; }
+
+    .ai-spin {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--accent);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: sp .6s linear infinite;
+      flex-shrink: 0;
+    }
+
+    footer {
+      text-align: center;
+      padding: 8px 16px 16px;
+      font-size: 10px;
+      color: #3a4259;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    footer span { color: var(--muted); }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="hi">
+      <div class="logo">
+        <img src="img/logo.png" class="logo-img">
+        <div>
+          <div class="logo-text">
+            <span class="val">Val</span><span class="group">group</span>
+            <span>MG10</span>
+          </div>
+          <div class="logo-sub">Inventário</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" id="btnPendentesHeader" onclick="mudarAba('pendentes')" title="Lançamentos pendentes"
+          style="display:none;position:relative;background:transparent;border:1px solid var(--border);border-radius:var(--r);color:var(--muted);width:36px;height:36px;align-items:center;justify-content:center;cursor:pointer;">
+          <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M12 9v4" />
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <circle cx="12" cy="16" r="0.5" fill="currentColor" />
+          </svg>
+          <span id="badgePendentes"
+            style="display:none;position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;border-radius:10px;min-width:16px;height:16px;padding:0 3px;align-items:center;justify-content:center;line-height:1;"></span>
+        </button>
+        <button type="button" id="btnExportadosHeader" onclick="mudarAba('exportados')" title="Arquivos exportados"
+          style="background:transparent;border:1px solid var(--border);border-radius:var(--r);color:var(--muted);width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+          <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+        </button>
+        <button type="button" id="btnConfig" onclick="abrirConfig()" title="Configurar acesso ao GitHub"
+          style="background:transparent;border:1px solid var(--border);border-radius:var(--r);color:var(--muted);width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+          <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div id="toast"></div>
+  <div id="ov">
+    <div class="spin"></div>
+    <p id="ovm">Enviando...</p>
+  </div>
+
+  <div id="configModal">
+    <div class="config-box">
+      <div class="ctitle" style="margin-bottom:14px;">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M12 2l7 4v6c0 5-3.5 9-7 10-3.5-1-7-5-7-10V6z" />
+        </svg>
+        Acesso ao GitHub
+      </div>
+      <p style="color:var(--muted);font-size:12.5px;line-height:1.5;margin-bottom:16px;">
+        Cole abaixo o token de acesso pessoal do GitHub (com permissão de escrita no repositório). Ele fica salvo
+        somente neste dispositivo.
+      </p>
+      <div class="field" style="margin-bottom:14px;">
+        <label>Token (Personal Access Token)</label>
+        <input type="password" id="cfgToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label>Chave da API Google Cloud Vision (opcional)</label>
+        <input type="password" id="cfgVisionKey" placeholder="AIza..." autocomplete="off">
+        <p style="color:var(--muted);font-size:11.5px;line-height:1.4;margin-top:6px;">
+          Melhora bastante a leitura de foto de etiqueta no navegador (funciona em qualquer ângulo, ao contrário do
+          leitor local). Precisa de internet. Sem chave configurada, o app usa o leitor local (offline) normalmente.
+        </p>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn-sub" style="margin-top:0;" onclick="salvarConfig()">Salvar</button>
+        <button type="button" id="btnCancelarConfig" onclick="fecharConfig()"
+          style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
+      </div>
+      <button type="button" onclick="fecharConfig(); abrirItensEditor();"
+        style="margin-top:14px;width:100%;background:transparent;border:1px dashed var(--border);border-radius:var(--r);color:var(--muted);font-size:12.5px;padding:10px;cursor:pointer;">
+        Editar lista de itens do formulário
+      </button>
+    </div>
+  </div>
+
+  <div id="itensEditorModal">
+    <div class="config-box" style="max-width:520px;">
+      <div class="ctitle" style="margin-bottom:14px;">Editar lista de itens</div>
+
+      <div id="itensSenhaEtapa">
+        <p style="color:var(--muted);font-size:12.5px;line-height:1.5;margin-bottom:16px;">
+          Essa área é protegida. Informe a senha para editar a lista de setores/tipos/itens do formulário.
+        </p>
+        <div class="field" style="margin-bottom:16px;">
+          <label>Senha</label>
+          <input type="password" id="itensSenhaInput" placeholder="••••••••" autocomplete="off">
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="btn-sub" style="margin-top:0;" onclick="verificarSenhaItens()">Entrar</button>
+          <button type="button" onclick="fecharItensEditor()"
+            style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
+        </div>
+      </div>
+
+      <div id="itensEdicaoEtapa" style="display:none;max-height:80vh;overflow-y:auto;">
+        <div class="field" style="margin-bottom:14px;">
+          <label>Senha de acesso</label>
+          <input type="text" id="itensEditSenha" placeholder="Senha para editar essa lista">
+        </div>
+
+        <div class="field" style="margin-bottom:16px;">
+          <label>Setor</label>
+          <div style="display:flex;gap:8px;">
+            <select id="itensEditSetorSelect" style="flex:1;" onchange="trocarSetorEditor()"></select>
+            <button type="button" onclick="adicionarSetorEditor()"
+              style="flex-shrink:0;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--r);color:var(--accent2);font-size:12px;padding:0 12px;cursor:pointer;">+ Setor</button>
+            <button type="button" onclick="removerSetorEditor()"
+              style="flex-shrink:0;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--r);color:var(--danger);font-size:12px;padding:0 12px;cursor:pointer;">Excluir</button>
+          </div>
+        </div>
+
+        <div id="itensEditTiposContainer" style="margin-bottom:10px;"></div>
+
+        <button type="button" onclick="adicionarTipoEditor()"
+          style="width:100%;background:var(--input-bg);border:1px dashed var(--accent);border-radius:var(--r);color:var(--accent2);font-size:13px;font-weight:500;padding:10px;cursor:pointer;margin-bottom:16px;">
+          + Adicionar tipo neste setor
+        </button>
+
+        <p id="itensEditorErro" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none;"></p>
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="btn-sub" style="margin-top:0;" onclick="salvarItensEditor()">Salvar no GitHub</button>
+          <button type="button" onclick="fecharItensEditor()"
+            style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <button type="button" class="tab-btn active" id="tabBtnNovo" onclick="mudarAba('novo')">Novo Lançamento</button>
+    <button type="button" class="tab-btn" id="tabBtnLista" onclick="mudarAba('lista')">Lançamentos</button>
+  </div>
+
+  <main id="viewNovo">
+    <div class="ptitle">Nova Confirmação</div>
+
+    <div id="ai-status">
+      <div class="ai-spin"></div>
+      <span id="ai-status-msg">Interpretando etiqueta...</span>
+    </div>
+
+    <div class="card">
+      <div class="ctitle">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M3 9h18M9 21V9" />
+        </svg>
+        Identificação
+      </div>
+      <div class="g2">
+        <div class="field">
+          <label>Nome <span class="req">*</span></label>
+          <input type="text" id="nome">
+        </div>
+        <div class="field">
+          <label>Matrícula <span class="req">*</span></label>
+          <input type="text" inputmode="decimal" id="matricula" placeholder="Ex: 1015" maxlength="4"
+            onblur="formatRegister(event)">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ctitle">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M9 12l2 2 4-4" />
+          <circle cx="12" cy="12" r="9" />
+        </svg>
+        Dados do Material
+      </div>
+      <div class="g3">
+        <div class="field">
+          <label>Setor produzido <span class="req">*</span></label>
+          <select id="setor">
+            <option value="Resinas">Resinas</option>
+            <option value="Recicladora">Recicladora</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Tipo de material <span class="req">*</span></label>
+          <select id="produto"></select>
+        </div>
+        <div class="field">
+          <label>Item <span class="req">*</span></label>
+          <select id="item"></select>
+        </div>
+      </div>
+      <div class="g2" style="margin-top:14px">
+        <div class="field">
+          <label for="uc">Unidade comercial <span class="req">*</span></label>
+          <input type="text" inputmode="numeric" id="uc" placeholder="Ex: 00112345678123456789" maxlength="20">
+        </div>
+        <div class="field">
+          <label>Lote <span class="req">*</span></label>
+          <input type="text" inputmode="numeric" id="lote" placeholder="Ex: 0012345678" maxlength="10">
+        </div>
+        <div class="field">
+          <label>Peso <span class="req">*</span></label>
+          <input type="text" inputmode="decimal" id="peso" placeholder="Ex: 500 ou 500,50" maxlength="10">
+        </div>
+        <div class="field">
+          <label>Local armazenado <span class="req">*</span></label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="local" style="flex:1;" disabled onchange="marcarLocalManual()">
+              <option value="Galpão 2">Galpão 2</option>
+              <option value="Galpão 4">Galpão 4</option>
+              <option value="Galpão das Resinas">Galpão das Resinas</option>
+              <option value="Galpão das Recicladoras">Galpão das Recicladoras</option>
+              <option value="Pátio frente Vestiário">Pátio frente Vestiário</option>
+              <option value="Pátio norte">Pátio norte</option>
+              <option value="Pátio Sul">Pátio Sul</option>
+              <option value="Galpão 3 Rios">Galpão 3 Rios</option>
+              <option value="Galpão SSP">Galpão SSP</option>
+              <option value="Frente Almoxarifado">Frente Almoxarifado</option>
+              <option value="Frente ao G4">Frente ao G4</option>
+              <option value="Quarentena Subprodutos">Quarentena Subprodutos</option>
+              <option value="Atrás Dupet">Atrás Dupet</option>
+              <option value="Outros locais">Outros locais</option>
+            </select>
+            <button type="button" id="btnGps" onclick="detectarLocalGPS()" title="Recalcular localização via GPS"
+              style="flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--r);color:var(--muted);font-size:12px;font-weight:500;padding:10px 12px;cursor:pointer;white-space:nowrap;transition:border-color .15s,color .15s;">
+              <svg id="gpsIcon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+                <circle cx="12" cy="12" r="9" stroke-dasharray="4 2" />
+              </svg>
+              <span id="gpsBtnTxt">Atualizar</span>
+            </button>
+          </div>
+          <span id="gpsAccuracy" style="font-size:10px;color:var(--muted);margin-top:3px;display:none;"></span>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:14px;">
+        <label>Observações</label>
+        <textarea id="observacoes" placeholder="Anotações adicionais (opcional)" maxlength="500" rows="1" style="min-height:0;height:auto;resize:none;overflow:hidden;padding-top:10px;padding-bottom:10px;"></textarea>
+      </div>
+
+      <button type="button" onclick="fotografarEtiqueta()"
+        style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--input-bg);border:1px dashed var(--accent);border-radius:var(--r);color:var(--accent2);font-size:13px;font-weight:500;padding:10px;width:100%;cursor:pointer;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+          <circle cx="12" cy="13" r="4" />
+        </svg>
+        Fotografar etiqueta
+      </button>
+    </div>
+
+    <button class="btn-sub" id="btnLancar" onclick="lancar()">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path d="M22 2L11 13" />
+        <path d="M22 2L15 22 11 13 2 9l20-7z" />
+      </svg>
+      Lançar
+    </button>
+  </main>
+
+  <main id="viewLista" style="display:none;">
+    <div class="ptitle">Lançamentos</div>
+
+    <div class="card">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button type="button" class="btn-sub" style="margin-top:0;flex:1;min-width:160px;" onclick="carregarLancamentos()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M21 12a9 9 0 1 1-3-6.7" />
+            <path d="M21 3v6h-6" />
+          </svg>
+          <span id="btnCarregarTxt">Carregar</span>
+        </button>
+        <button type="button" onclick="abrirExportar()"
+          style="flex:1;min-width:160px;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:14px 20px;cursor:pointer;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M12 15V3M6 9l6 6 6-6" />
+            <path d="M4 21h16" />
+          </svg>
+          Exportar
+        </button>
+      </div>
+      <p id="listaInfo" style="color:var(--muted);font-size:11.5px;margin-top:12px;">Nenhum lançamento carregado ainda.</p>
+    </div>
+
+    <div id="listaCards"></div>
+  </main>
+
+  <main id="viewExportados" style="display:none;">
+    <div class="ptitle">Arquivos exportados</div>
+    <div class="card">
+      <p style="color:var(--muted);font-size:12px;line-height:1.5;">
+        Planilhas geradas anteriormente, salvas na pasta <b>Documentos/<span id="pastaExportacoesLabel"></span></b>
+        do aparelho.
+      </p>
+    </div>
+    <div id="exportadosCards"></div>
+    <p id="exportadosInfo" style="color:var(--muted);font-size:12px;text-align:center;margin-top:10px;"></p>
+  </main>
+
+  <main id="viewPendentes" style="display:none;">
+    <div class="ptitle">Pendentes de envio</div>
+    <div class="card">
+      <p style="color:var(--muted);font-size:12px;line-height:1.5;">
+        Esses lançamentos já estão salvos neste aparelho e serão enviados automaticamente assim que houver conexão.
+        Nada é perdido se o app for fechado.
+      </p>
+      <button type="button" class="btn-sub" style="margin-top:14px;" onclick="processarFila()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path d="M21 12a9 9 0 1 1-3-6.7" />
+          <path d="M21 3v6h-6" />
+        </svg>
+        Tentar enviar agora
+      </button>
+    </div>
+    <div id="pendentesCards"></div>
+  </main>
+
+  <footer>dev: <span>Fadini</span></footer>
+
+  <div id="editModal">
+    <div class="config-box" style="max-width:440px;">
+      <div class="ctitle" style="margin-bottom:14px;">Editar lançamento</div>
+      <div class="g2" style="margin-bottom:14px;">
+        <div class="field">
+          <label>Nome</label>
+          <input type="text" id="editNome">
+        </div>
+        <div class="field">
+          <label>Matrícula</label>
+          <input type="text" id="editMatricula" maxlength="4">
+        </div>
+      </div>
+      <div class="g2" style="margin-bottom:14px;">
+        <div class="field">
+          <label>Setor</label>
+          <select id="editSetor">
+            <option value="Resinas">Resinas</option>
+            <option value="Recicladora">Recicladora</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Data</label>
+          <input type="date" id="editData">
+        </div>
+      </div>
+      <div class="g2" style="margin-bottom:14px;">
+        <div class="field">
+          <label>Item (código)</label>
+          <input type="text" id="editItem">
+        </div>
+        <div class="field">
+          <label>Descrição material</label>
+          <input type="text" id="editDescMaterial">
+        </div>
+      </div>
+      <div class="g3" style="margin-bottom:14px;">
+        <div class="field">
+          <label>UC</label>
+          <input type="text" id="editUc">
+        </div>
+        <div class="field">
+          <label>Lote</label>
+          <input type="text" id="editLote">
+        </div>
+        <div class="field">
+          <label>Peso</label>
+          <input type="text" id="editPeso">
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:18px;">
+        <label>Local</label>
+        <input type="text" id="editLocal">
+      </div>
+      <div class="field" style="margin-bottom:18px;">
+        <label>Observações</label>
+        <textarea id="editObservacoes" maxlength="500"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn-sub" style="margin-top:0;" onclick="salvarEdicao()">Salvar</button>
+        <button type="button" onclick="fecharEdicao()"
+          style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="exportModal">
+    <div class="config-box" style="max-width:400px;">
+      <div class="ctitle" style="margin-bottom:14px;">Exportar planilha</div>
+
+      <div class="field" style="margin-bottom:14px;">
+        <label>Filtro</label>
+        <div id="filtroOpcoes">
+          <button type="button" class="filtro-opcao active" data-valor="todos" onclick="selecionarFiltroExport('todos')">
+            <span>Todos os lançamentos</span>
+            <span class="filtro-radio"></span>
+          </button>
+          <button type="button" class="filtro-opcao" data-valor="data" onclick="selecionarFiltroExport('data')">
+            <span>Período específico</span>
+            <span class="filtro-radio"></span>
+          </button>
+          <button type="button" class="filtro-opcao" data-valor="usuario" onclick="selecionarFiltroExport('usuario')">
+            <span>Usuário específico</span>
+            <span class="filtro-radio"></span>
+          </button>
+        </div>
+      </div>
+
+      <div id="expCamposData" style="display:none;margin-bottom:14px;">
+        <div class="g2">
+          <div class="field">
+            <label>De</label>
+            <input type="date" id="expDataDe">
+          </div>
+          <div class="field">
+            <label>Até</label>
+            <input type="date" id="expDataAte">
+          </div>
+        </div>
+      </div>
+
+      <div id="expCamposUsuario" style="display:none;margin-bottom:14px;">
+        <div class="field">
+          <label>Usuário (nome ou matrícula)</label>
+          <select id="expUsuario"></select>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn-sub" style="margin-top:0;" onclick="gerarExportacao()">Gerar planilha</button>
+        <button type="button" onclick="fecharExportar()"
+          style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="exportProntoModal">
+    <div class="config-box" style="max-width:380px;">
+      <div class="ctitle" style="margin-bottom:6px;">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M9 12l2 2 4-4" />
+          <circle cx="12" cy="12" r="9" />
+        </svg>
+        Planilha gerada
+      </div>
+      <p id="exportProntoInfo" style="color:var(--muted);font-size:12.5px;line-height:1.5;margin-bottom:18px;"></p>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button type="button" class="btn-sub" style="margin-top:0;" onclick="salvarExportNoDispositivo()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <path d="M17 21v-8H7v8M7 3v5h8" />
+          </svg>
+          Salvar no dispositivo
+        </button>
+        <button type="button" onclick="compartilharExport()"
+          style="margin-top:0;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:14px 20px;cursor:pointer;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+          </svg>
+          Compartilhar
+        </button>
+        <button type="button" onclick="fecharExportPronto()"
+          style="margin-top:0;background:transparent;border:none;color:var(--muted);padding:8px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── Configurações ────────────────────────────────────────────────────────────
+    // Repositório (privado) que vai receber os lançamentos.
+    // Ajuste estes 3 valores para o seu repositório antes de publicar o app.
+    const GITHUB_OWNER  = 'RogerioFadini';
+    const GITHUB_REPO   = 'Inventario_valgroup_MG10';
+    const GITHUB_BRANCH = 'main';
+    // Pasta dentro do repo onde cada lançamento vira um arquivo .json individual.
+    const GITHUB_PATH_PREFIX = 'lancamentos';
+
+    // Pasta criada dentro de Documentos no dispositivo (Documentos/
+    // Valgroup_MG10), onde as planilhas exportadas são salvas.
+    const PASTA_EXPORTACOES = 'Valgroup_MG10';
+
+    // Arquivo no repositório com a lista de setores/tipos/itens do formulário.
+    // Editar esse arquivo direto no GitHub atualiza a lista em todos os
+    // aparelhos, sem precisar publicar uma nova versão do app.
+    const ITENS_JSON_PATH = 'itens.json';
+
+    const Q = {
+      data_inventario: 'r44ea54c967e24d73a6636f8bb568d519',
+      nome: 'r5bfd15f8a8624e57bed66c7995ebb17d',
+      matricula: 'rcb11aeddacd44b0891bec8111074a7f5',
+      setor: 'rd1d0cd2e662d4e608198e97181f9eadf',
+      produto: 'r5c20011171d746febf6b2320972d65e7',
+      item: 'rcc0bb330759b48acabc74cc0ac13143b',
+      desc_material: 'r218486fbb16045fb833e8bf5efb847b4',
+      uc: 'r185934d3e3e54a9b9b75fec153ac6682',
+      lote: 'r0a73f199628f4975acfdcf5dca0c6f41',
+      peso: 'r01ec13e9a489434faac02fe479040ae4',
+      local: 'r43bdce7bfe4a4e99a23f70da41b9569a'
+    };
+
+    let listaItens = {
+      "Resinas": {
+        "Acabado": ["RA0001 - RESINA PET PCR VERDE", "RA0002 - RESINA PET PCR CRISTAL", "RA0003 - RESINA PET PCR SEM PIGMENTO", "RA0005 - RESINA PET PCR VERDE OFF", "RA0006 - RESINA PET PCR CRISTAL OFF", "RA0014 - RESINA PET PCR VERDE CCI", "RA0015 - RESINA PET PCR CRISTAL CCI", "RA0016 - RESINA PET PCR COLORIDO", "RA0019 - RESINA PET PCR VERDE MOÍDA EXTERNA", "RA0020 - RESINA PET PCR VERDE MOÍDA EXT BLEND"],
+        "Semiacabado": ["RB0007 - RESINA AMORFO VERDE", "RB0008 - RESINA AMORFO CRISTAL", "RB0034 - RESINA AMORFO CRISTAL CCI", "RB0035 - RESINA AMORFO SEM PIGMENTO", "RB0036 - RESINA AMORFO VERDE CCI", "RB0037 - RESINA AMORFO COLORIDO", "RB0039 - RESINA AMORFO VERDE MOIDO EXTERNO", "RB0040 - RESINA AMORFO VERDE MOIDO EXT BLEND", "RB0044 - RESINA AMORFO TEXTIL COLORIDO", "RB0045 - RESINA AMORFO TEXTIL VERDE", "RB0046 - RESINA AMORFO TEXTIL CRISTAL"],
+        "Subproduto": ["536001 - FLAKE PET QUEIMADO", "536002 - PO PET INDUSTRIAL EREMA", "536009 - RESINA PET MISTA", "536021 - VARREDURA AMORFO CRISTAL", "540005 - RESIDUO RES CR CONTAMINADA VARREDURA", "540012 - APARA BORRA CRISTAL", "540013 - APARA BORRA VERDE", "540014 - VARREDURA AMORFO CRISTAL", "540015 - VARREDURA AMORFO VERDE", "540016 - VARREDURA FLAKE CRISTAL", "540018 - RESINA PET PCR RECUPERADA CRISTAL", "540019 - RESINA PET PCR RECUPERADA VERDE", "540022 - RESIDUO RES COLORIDO CONTAMIN VARREDURA", "541020 - VARREDURA AMORFO COLORIDO", "541021 - APARA BORRA COLORIDO"],
+        "Matéria Prima": ["142134 - RESINA PET PCR CRISTAL IMPORTADA", "160002 - FLAKE CRISTAL LAVADO A FRIO EXTERNO", "160003 - FLAKE VERDE HIPERLAVADO EXTERNO", "160004 - FLAKE CRISTAL HIPERLAVADO EXTERNO", "160007 - FLAKE VERDE IMP HIPERLAVADO EXTERNO", "160008 - FLAKE CRISTAL IMP HIPERLAVADO EXTERNO", "160009 - FLAKE AZUL HIPERLAVADO EXTERNO", "160019 - FLAKE VERDE MOIDO EXTERNO", "160020 - BORRA MOIDA EXTERNA", "167002 - RESINA AMORFO CRISTAL EXTERNO CCI"]
+      },
+      "Recicladora": {
+        "Semiacabado": ["RB0001 - FLAKE DE PET VERDE", "RB0002 - FLAKE DE PET CRISTAL", "RB0004 - FLAKE COLORIDO", "RB0038 - FLAKE DE PET HIPERLAVADO COLORIDO", "236001 - RECUPERADO FLAKE COLORIDO", "257005 - RECUPERADO PREFORMA TRITURADA VERDE", "257006 - RECUPERADO PREFORMA TRITURADA CRISTAL", "257007 - RECUPERADO PREFORMA TRITURADA COLORIDO", "257008 - RECUPERADO PREFORMA TRITURADA OLEO", "257009 - RECUPERADO PREFORMA TRITURADA AZUL"],
+        "Subproduto": ["536005 - ROTULO TRITURADO SELECIONADO", "536006 - FLAKE PET SEA", "536007 - FLAKE PET UNISENSOR", "536008 - FLAKE PET MISTO", "538003 - ROTULO TRITURADO STARTSCREEN", "538004 - ROTULO TRITURADO MISTO COM TAMPA TRITURA", "538019 - ROTULO TRITURADO TROMEL", "538020 - PO PET CRISTAL CISTERNA", "538021 - PO PET CRISTAL DESPOEIRADOR", "539008 - SUCATA PAPELAO SELECAO MANUAL", "539009 - SUCATA METAL SELECAO MANUAL", "539012 - FLAKE UMIDO HIDROCICLONE", "539013 - FLAKE VERDE HIDROCICLONE", "539014 - FLAKE INCOLOR TAMBOR MAGNETICO", "539015 - FLAKE VERDE TAMBOR MAGNETICO", "539016 - FLAKE PET SEA CRISTAL", "539017 - FLAKE PET SEA VERDE", "539018 - PO PET CRISTAL CISTERNA", "539019 - PO PET VERDE CISTERNA", "539020 - PO PET CRISTAL DESPOEIRADOR", "539021 - PO PET VERDE DESPOEIRADOR", "539022 - PO PET CRISTAL PENEIRA", "539023 - PO PET VERDE PENEIRA", "539024 - ROTULO TRITURADO HIDROFILTRO", "539025 - SUCATA DE PLASTICO FITA PET", "539026 - SUCATA DE PLASTICO FITILHO", "539027 - SUCATA DE PLASTICO RAFIA", "539028 - SUCATA GARRAFA REFUGO RECICLAGEM", "540016 - VARREDURA FLAKE CRISTAL", "540017 - VARREDURA FLAKE VERDE"],
+        "Matéria Prima": ["541010 - APARA PF COM OLEO", "541012 - APARA PF AZUL", "541013 - APARA PF COLORIDA", "541014 - APARA PF CRISTAL", "541015 - APARA PF VERDE", "541016 - APARA PF VERMELHO", "541017 - APARA PF BRANCA", "159001 - SUCATA GARRAFA VERDE", "159002 - SUCATA GARRAFA CRISTAL", "159003 - SUCATA GARRAFA AZUL", "159005 - SUCATA GARRAFA OLEO"]
+      }
+    };
+
+    // ─── Token do GitHub (salvo localmente no dispositivo) ────────────────────────
+    const GITHUB_TOKEN_KEY = 'valgroup_mg10_gh_token';
+
+    async function getGithubToken() {
+      const Prefs = window?.Capacitor?.Plugins?.Preferences;
+      if (Prefs) {
+        try {
+          const r = await Prefs.get({ key: GITHUB_TOKEN_KEY });
+          return r?.value || null;
+        } catch (e) { return null; }
+      }
+      return localStorage.getItem(GITHUB_TOKEN_KEY);
+    }
+
+    async function setGithubToken(token) {
+      const Prefs = window?.Capacitor?.Plugins?.Preferences;
+      if (Prefs) {
+        await Prefs.set({ key: GITHUB_TOKEN_KEY, value: token });
+      } else {
+        localStorage.setItem(GITHUB_TOKEN_KEY, token);
+      }
+    }
+
+    // ─── Chave da API Google Cloud Vision (opcional, salva localmente) ────────────
+    const VISION_KEY_KEY = 'valgroup_mg10_vision_key';
+
+    async function getVisionApiKey() {
+      const Prefs = window?.Capacitor?.Plugins?.Preferences;
+      if (Prefs) {
+        try {
+          const r = await Prefs.get({ key: VISION_KEY_KEY });
+          return r?.value || null;
+        } catch (e) { return null; }
+      }
+      return localStorage.getItem(VISION_KEY_KEY);
+    }
+
+    async function setVisionApiKey(key) {
+      const Prefs = window?.Capacitor?.Plugins?.Preferences;
+      if (Prefs) {
+        await Prefs.set({ key: VISION_KEY_KEY, value: key });
+      } else {
+        localStorage.setItem(VISION_KEY_KEY, key);
+      }
+    }
+
+    function abrirConfig() {
+      document.getElementById('configModal').classList.add('show');
+      document.getElementById('btnCancelarConfig').style.display = 'block';
+      getGithubToken().then(tok => { document.getElementById('cfgToken').value = tok || ''; });
+      getVisionApiKey().then(key => { document.getElementById('cfgVisionKey').value = key || ''; });
+    }
+
+    function fecharConfig() {
+      document.getElementById('configModal').classList.remove('show');
+    }
+
+    async function salvarConfig() {
+      const token = document.getElementById('cfgToken').value.trim();
+      if (!token) { toast('Informe o token.', 'error'); return; }
+      await setGithubToken(token);
+      await setVisionApiKey(document.getElementById('cfgVisionKey').value.trim());
+      toast('Configurações salvas neste dispositivo.', 'success');
+      fecharConfig();
+    }
+
+    // Na primeira abertura (sem token salvo), força a configuração e esconde o
+    // botão "Cancelar" para garantir que o app não seja usado sem o token.
+    async function garantirTokenConfigurado() {
+      const tok = await getGithubToken();
+      if (!tok) {
+        document.getElementById('cfgToken').value = '';
+        document.getElementById('btnCancelarConfig').style.display = 'none';
+        document.getElementById('configModal').classList.add('show');
+      }
+    }
+    document.addEventListener('DOMContentLoaded', garantirTokenConfigurado);
+
+    // ─── Utilitários ──────────────────────────────────────────────────────────────
+    function gv(id) { return document.getElementById(id)?.value ?? ''; }
+
+    function toast(msg, type = 'info', duration = 3500) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'show ' + type;
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => { t.className = ''; }, duration);
+    }
+
+    function setLoad(show, msg = 'Enviando...') {
+      document.getElementById('ovm').textContent = msg;
+      document.getElementById('ov').classList.toggle('show', show);
+    }
+
+    function formatRegister(e) {
+      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+    }
+
+    function setAiStatus(show, msg = '') {
+      document.getElementById('ai-status-msg').textContent = msg;
+      document.getElementById('ai-status').classList.toggle('show', show);
+    }
+
+    function highlightField(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('ai-filled');
+      setTimeout(() => el.classList.remove('ai-filled'), 4000);
+    }
+
+    function atualizarTipos() {
+      const setor = gv('setor');
+      const produtoEl = document.getElementById('produto');
+      const atual = produtoEl.value;
+      produtoEl.innerHTML = '';
+      Object.keys(listaItens[setor] || {}).forEach(t => {
+        const o = document.createElement('option');
+        o.value = o.textContent = t;
+        produtoEl.appendChild(o);
+      });
+      if (atual) produtoEl.value = atual;
+      atualizarItens();
+    }
+
+    function atualizarItens() {
+      const itemEl = document.getElementById('item');
+      itemEl.innerHTML = '';
+      (listaItens[gv('setor')]?.[gv('produto')] || []).forEach(txt => {
+        const o = document.createElement('option');
+        o.value = o.textContent = txt;
+        itemEl.appendChild(o);
+      });
+    }
+
+    // Carrega um <script> sob demanda (só quando o fallback web de OCR/barcode
+    // é realmente usado, não no boot da página) e cacheia a Promise pra não
+    // duplicar a tag se chamado de novo.
+    const _scriptsCarregados = {};
+    function carregarScript(src) {
+      if (_scriptsCarregados[src]) return _scriptsCarregados[src];
+      _scriptsCarregados[src] = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
+        document.head.appendChild(s);
+      });
+      return _scriptsCarregados[src];
+    }
+
+    // ─── Converte webPath → base64 ────────────────────────────────────────────────
+    async function webPathParaBase64(webPath) {
+      const resp = await fetch(webPath);
+      const blob = await resp.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // ─── Fallback web da câmera: <input capture> (sem preview ao vivo, mesmo
+    // comportamento de "1 foto só" do plugin nativo Camera.getPhoto) ──────────────
+    // Importante: display:none pode impedir o picker de abrir no Safari iOS,
+    // por isso ele fica oculto visualmente mas presente no layout.
+    let _inputFotoWeb = null;
+    function _getInputFotoWeb() {
+      if (_inputFotoWeb) return _inputFotoWeb;
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.capture = 'environment';
+      input.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0,0,0,0);';
+      document.body.appendChild(input);
+      _inputFotoWeb = input;
+      return input;
+    }
+
+    // Se o usuário cancelar o picker, o Safari não dispara nenhum evento
+    // confiável — a Promise fica pendente e a próxima chamada simplesmente
+    // substitui o handler, sem travar a UI (setAiStatus só liga depois que
+    // uma foto de fato chega).
+    function capturarFotoWeb() {
+      return new Promise((resolve, reject) => {
+        const input = _getInputFotoWeb();
+        input.value = '';
+        input.onchange = () => {
+          const file = input.files?.[0];
+          if (!file) { reject(new Error('Nenhuma foto selecionada')); return; }
+          resolve(file);
+        };
+        input.click();
+      });
+    }
+
+    // Substitui o correctOrientation do plugin nativo: lê o EXIF de orientação
+    // via createImageBitmap e desenha já corrigido num canvas, redimensionando
+    // para no máximo `maxDim` no lado maior (evita imagem de 12MP+ deixando o
+    // OCR client-side lento).
+    async function _imageFileParaCanvas(file, maxDim) {
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      const escala = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+      const w = Math.round(bitmap.width * escala);
+      const h = Math.round(bitmap.height * escala);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+      bitmap.close?.();
+      return canvas;
+    }
+
+    function _canvasParaBase64(canvas, qualidade = 0.92) {
+      return canvas.toDataURL('image/jpeg', qualidade).split(',')[1];
+    }
+
+    // Melhora a legibilidade pro OCR: converte pra escala de cinza e aplica
+    // alongamento de contraste (stretch linear baseado no min/máx de brilho da
+    // foto). Fotos de etiqueta em galpão costumam ter iluminação desigual/baixo
+    // contraste, e isso ajuda bastante o Tesseract sem custar processamento
+    // pesado. Não mexe no canvas original (o do barcode continua colorido).
+    function _prepararCanvasParaOCR(canvasOrigem) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvasOrigem.width;
+      canvas.height = canvasOrigem.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(canvasOrigem, 0, 0);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d = imgData.data;
+
+      let min = 255, max = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        const cinza = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        d[i] = d[i + 1] = d[i + 2] = cinza;
+        if (cinza < min) min = cinza;
+        if (cinza > max) max = cinza;
+      }
+      const alcance = Math.max(1, max - min);
+      for (let i = 0; i < d.length; i += 4) {
+        const v = ((d[i] - min) / alcance) * 255;
+        d[i] = d[i + 1] = d[i + 2] = v < 0 ? 0 : v > 255 ? 255 : v;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      return canvas;
+    }
+
+    // Gira um canvas em qualquer ângulo — usado pra testar várias orientações
+    // possíveis da foto no OCR web (ver rodarOCRWeb). O canvas de saída é
+    // redimensionado pra caber a imagem inteira girada (bounding box), com
+    // fundo branco nas sobras (etiqueta é papel branco, não atrapalha o OCR).
+    function _rotacionarCanvas(canvasOrigem, anguloGraus) {
+      const rad = (anguloGraus * Math.PI) / 180;
+      const cos = Math.abs(Math.cos(rad));
+      const sin = Math.abs(Math.sin(rad));
+      const novaLargura = Math.round(canvasOrigem.width * cos + canvasOrigem.height * sin);
+      const novaAltura = Math.round(canvasOrigem.width * sin + canvasOrigem.height * cos);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = novaLargura;
+      canvas.height = novaAltura;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, novaLargura, novaAltura);
+      ctx.translate(novaLargura / 2, novaAltura / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(canvasOrigem, -canvasOrigem.width / 2, -canvasOrigem.height / 2);
+      return canvas;
+    }
+
+    // ─── Fotografar: OCR + QR Code com uma foto só ───────────────────────────────
+    async function fotografarEtiqueta() {
+      try {
+        const Camera = window?.Capacitor?.Plugins?.Camera;
+        let foto, base64, base64Barcode, canvasOcr = null;
+
+        if (Camera) {
+          foto = await Camera.getPhoto({
+            quality: 92,
+            allowEditing: false,
+            resultType: 'uri',
+            source: 'CAMERA',
+            correctOrientation: true
+          });
+
+          console.log('[Camera] path:', foto.path, '| webPath:', foto.webPath);
+
+          if (!foto.webPath && !foto.path) {
+            toast('Falha ao capturar imagem.', 'error', 5000);
+            return;
+          }
+
+          base64 = await webPathParaBase64(foto.webPath);
+          base64Barcode = base64;
+          console.log('[Camera] base64 length:', base64.length);
+        } else {
+          const file = await capturarFotoWeb();
+          // Base em resolução mais alta (2000px) reaproveitada tanto pro
+          // barcode (colorido) quanto como ponto de partida do OCR (que
+          // recebe, além disso, escala de cinza + contraste — ver
+          // _prepararCanvasParaOCR).
+          const canvasBase = await _imageFileParaCanvas(file, 2000);
+          canvasOcr = _prepararCanvasParaOCR(canvasBase);
+          base64Barcode = _canvasParaBase64(canvasBase);
+          base64 = _canvasParaBase64(canvasOcr, 0.95);
+          foto = { path: null, webPath: null };
+        }
+
+        setAiStatus(true, 'Lendo QR Code e texto da etiqueta...');
+
+        const [resultadoOCR, resultadoQR] = await Promise.allSettled([
+          rodarOCR(foto, base64, canvasOcr, base64Barcode),
+          rodarBarcode(foto, base64Barcode)
+        ]);
+
+        setAiStatus(false);
+
+        if (resultadoQR.status === 'fulfilled' && resultadoQR.value) {
+          const uc = resultadoQR.value.trim();
+          if (uc) {
+            const ucFormatada = normalizarUC(uc);
+            document.getElementById('uc').value = ucFormatada;
+            highlightField('uc');
+            console.log('[QR] lido:', uc);
+          }
+        } else {
+          console.warn('[QR] não detectado:', resultadoQR.reason?.message ?? 'sem resultado');
+        }
+
+        if (resultadoOCR.status === 'fulfilled' && resultadoOCR.value) {
+          const texto = resultadoOCR.value;
+          console.log('[OCR] texto:\n', texto);
+          if (!window.Capacitor) {
+            // Debug visível no navegador (sem plugin nativo não tem como ver
+            // o console no celular) — mostra o que o OCR conseguiu ler.
+            // alert() (não toast) porque o toast seguinte de aplicarCamposIA
+            // sobrescreveria esse texto antes de dar tempo de ler.
+            alert('OCR leu:\n\n' + texto.trim());
+          }
+          const dados = parsearEtiqueta(texto);
+          aplicarCamposIA(dados);
+        } else {
+          console.warn('[OCR] falhou:', resultadoOCR.reason?.message ?? 'sem resultado');
+          toast('OCR não identificou texto. Melhore a iluminação e tente novamente.', 'info', 5000);
+        }
+
+      } catch (err) {
+        setAiStatus(false);
+        console.error('[fotografarEtiqueta]', err);
+        const msg = err?.message ?? '';
+        if (msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('user cancelled')) return;
+        toast(`Erro: ${msg}`, 'error', 5000);
+      }
+    }
+
+    // ─── Normalização ─────────────────────────────────────────────────────────────
+    function normalizarUC(valor) {
+      if (!valor) return '';
+      let uc = valor.replace(/\D/g, '');
+      if (!uc.startsWith('00')) uc = '00' + uc;
+      return uc;
+    }
+
+    function normalizarLote(valor, ignorarTamanho = false) {
+      let lote = (valor || '').replace(/\D/g, '');
+      if (!lote) return null;
+      if (!ignorarTamanho && lote.length !== 10) return null;
+      return lote;
+    }
+
+    // ─── Normaliza peso vindo do OCR ───────────────────────────────────────────
+    // Regra fixa: vírgula é SEMPRE separador decimal (Tipo 1 = 3 casas, Tipo 2 = 0/1/2 casas).
+    // Ponto é SEMPRE separador de milhar e nunca é tratado como decimal — mesmo quando
+    // aparece sozinho com 3 dígitos depois (ex: "1.000" = mil, não "1,000" = um).
+    function normalizarPeso(bruto) {
+      if (!bruto) return null;
+
+      // mantém só dígitos, pontos e vírgulas
+      let raw = bruto.trim().replace(/[^\d.,]/g, '');
+      // remove separadores soltos no início/fim
+      raw = raw.replace(/^[.,]+|[.,]+$/g, '');
+      if (!raw) return null;
+
+      const idxVirgula = raw.lastIndexOf(',');
+
+      let inteiro, decimal;
+      if (idxVirgula === -1) {
+        // sem vírgula nenhuma → não há parte decimal, pontos são só milhar (Tipo 2 sem casas)
+        inteiro = raw.replace(/\./g, '');
+        decimal = null;
+      } else {
+        inteiro = raw.slice(0, idxVirgula).replace(/[.,]/g, '');
+        decimal = raw.slice(idxVirgula + 1).replace(/[^\d]/g, '') || null;
+      }
+
+      inteiro = inteiro.replace(/^0+(?=\d)/, ''); // tira zeros à esquerda supérfluos
+      if (!inteiro) return null;
+
+      // formata parte inteira com ponto de milhar
+      inteiro = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+      return decimal ? `${inteiro},${decimal}` : inteiro;
+}
+
+    // ─── OCR via CapacitorOcr ─────────────────────────────────────────────────────
+    async function rodarOCR(foto, base64, canvasOcr, base64Colorido) {
+      const OCR = window?.Capacitor?.Plugins?.CapacitorOcr;
+      if (!OCR) {
+        // Se houver chave do Cloud Vision configurada, tenta primeiro — ele
+        // lê texto em qualquer orientação de fábrica (mesma tecnologia do
+        // Lens/MLKit), sem precisar de rotação manual. Cai pro leitor local
+        // (offline) se não tiver chave, não tiver internet, ou a API falhar.
+        const visionKey = await getVisionApiKey();
+        if (visionKey) {
+          try {
+            return await rodarOCRCloudVision(base64Colorido ?? base64, visionKey);
+          } catch (e) {
+            console.warn('[OCR] Cloud Vision falhou, usando leitor local:', e.message);
+          }
+        }
+        return rodarOCRWeb(canvasOcr);
+      }
+
+      const tentativas = [
+        { base64: base64 },
+        { base64String: base64 },
+        { image: base64 },
+        { imagePath: foto.path?.replace(/^file:\/\//, '') },
+        { imagePath: foto.path },
+      ];
+
+      for (const payload of tentativas) {
+        try {
+          const r = await OCR.detectText(payload);
+          console.log('[OCR] sucesso com param:', Object.keys(payload)[0]);
+
+          let texto = '';
+          if (r?.textDetections) texto = r.textDetections.map(b => b.text).join('\n');
+          else if (r?.blocks) texto = r.blocks.map(b => b.lines ? b.lines.map(l => l.text).join('\n') : b.text ?? '').join('\n');
+          else if (r?.text) texto = r.text;
+          else if (r?.result) texto = r.result;
+          else if (typeof r === 'string') texto = r;
+
+          if (texto.trim()) return texto;
+        } catch (e) {
+          console.warn('[OCR] falhou com', Object.keys(payload)[0], '→', e.message);
+        }
+      }
+
+      throw new Error('CapacitorOcr: nenhum parâmetro funcionou');
+    }
+
+    // ─── OCR via Tesseract.js (fallback web, 100% client-side/offline) ───────────
+    // Vendorizado localmente em vendor/tesseract/ (não CDN em runtime) pra
+    // funcionar mesmo com sinal fraco no galpão, uma vez cacheado pelo SW.
+    // Carregado sob demanda (lazy) no primeiro uso, não no boot da página.
+    let _tesseractWorker = null;
+    async function _getTesseractWorker() {
+      if (_tesseractWorker) return _tesseractWorker;
+      await carregarScript('vendor/tesseract/tesseract.min.js');
+      const base = new URL('vendor/tesseract/', document.baseURI).href;
+      _tesseractWorker = await Tesseract.createWorker('por', 1, {
+        workerPath: base + 'worker.min.js',
+        corePath: base,     // diretório: a lib escolhe sozinha entre a variante
+                             // SIMD e a variante padrão, conforme suporte do device
+        langPath: base,     // busca base + 'por.traineddata.gz'
+        gzip: true,
+        cacheMethod: 'none' // nunca lê/grava no IndexedDB, sempre usa o arquivo local
+      });
+      return _tesseractWorker;
+    }
+
+    // ─── OCR via Google Cloud Vision API (mesma tecnologia do Lens/MLKit) ─────────
+    // DOCUMENT_TEXT_DETECTION lida com texto em qualquer orientação nativamente
+    // (não precisa de rotação manual, ao contrário do Tesseract local). Exige
+    // internet e uma chave de API configurada em "Configurar acesso" — o
+    // usuário decide se quer usar (é opcional, ver rodarOCR).
+    async function rodarOCRCloudVision(base64, apiKey) {
+      const resp = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requests: [{
+            image: { content: base64 },
+            features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
+            imageContext: { languageHints: ['pt'] }
+          }]
+        })
+      });
+
+      if (!resp.ok) throw new Error(`Cloud Vision: HTTP ${resp.status}`);
+      const data = await resp.json();
+      const resultado = data?.responses?.[0];
+      if (resultado?.error) throw new Error(`Cloud Vision: ${resultado.error.message}`);
+
+      const texto = resultado?.fullTextAnnotation?.text ?? '';
+      if (!texto.trim()) throw new Error('Cloud Vision: nenhum texto detectado');
+      return texto;
+    }
+
+    async function rodarOCRWeb(canvasOcr) {
+      const worker = await _getTesseractWorker();
+
+      // Usa a confiança que o próprio Tesseract calcula pra cada leitura
+      // (0-100, baseada no modelo de reconhecimento) — muito mais confiável
+      // do que tentar adivinhar pela aparência do texto extraído.
+      async function reconhecer(canvas) {
+        const { data } = await worker.recognize(canvas.toDataURL('image/jpeg', 0.95));
+        return { texto: data?.text ?? '', confianca: data?.confidence ?? 0 };
+      }
+
+      let melhor = await reconhecer(canvasOcr);
+      let melhorAngulo = 0;
+      console.log('[OCR web] 0°: confiança', melhor.confianca);
+
+      // 1. Orientações naturais (celular deitado ou de cabeça pra baixo) —
+      // caso mais comum, testado primeiro.
+      if (melhor.confianca < 60) {
+        for (const graus of [90, 180, 270]) {
+          const r = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
+          console.log(`[OCR web] ${graus}°: confiança`, r.confianca);
+          if (r.confianca > melhor.confianca) { melhor = r; melhorAngulo = graus; }
+          if (melhor.confianca >= 80) break;
+        }
+      }
+
+      // 2. Foto tirada torta em qualquer ângulo (não múltiplo de 90°) — varre
+      // o círculo inteiro de 30 em 30 graus usando a confiança real do
+      // Tesseract, depois refina em passos menores ao redor do melhor ângulo
+      // encontrado. Mais lento (pode chegar a ~15 tentativas), mas só entra
+      // em ação quando as tentativas anteriores falharam.
+      if (melhor.confianca < 60) {
+        for (let graus = 30; graus < 360; graus += 30) {
+          if (graus === 90 || graus === 180 || graus === 270) continue; // já testado
+          const r = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
+          console.log(`[OCR web] ${graus}°: confiança`, r.confianca);
+          if (r.confianca > melhor.confianca) { melhor = r; melhorAngulo = graus; }
+          if (melhor.confianca >= 80) break;
+        }
+
+        // Refino fino ao redor do melhor ângulo encontrado na varredura
+        // grossa, caso a leitura tenha melhorado mas ainda não esteja ótima.
+        if (melhor.confianca >= 30 && melhor.confianca < 80) {
+          for (const ajuste of [-15, -20, 15, 20]) {
+            const graus = melhorAngulo + ajuste;
+            const r = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
+            console.log(`[OCR web] ${graus}° (refino): confiança`, r.confianca);
+            if (r.confianca > melhor.confianca) melhor = r;
+            if (melhor.confianca >= 80) break;
+          }
+        }
+      }
+
+      if (!melhor.texto.trim()) throw new Error('OCR web: nenhum texto detectado');
+      return melhor.texto;
+    }
+
+    // ─── Barcode via BarcodeScanner ──────────────────────────────────────────────
+    async function rodarBarcode(foto, base64) {
+      const BS = window?.Capacitor?.Plugins?.BarcodeScanner;
+      if (!BS) return rodarBarcodeWeb(base64);
+      const metodos = Object.keys(BS);
+
+      console.log('[Barcode] métodos disponíveis:', metodos);
+
+      const formats = ['QR_CODE', 'CODE_128', 'CODE_39', 'EAN_13', 'DATA_MATRIX', 'PDF_417'];
+      const path = foto.path;
+      const pathSem = foto.path?.replace(/^file:\/\//, '');
+      const tentativas = [];
+
+      if (metodos.includes('readBarcodesFromImage')) {
+        tentativas.push(
+          () => BS.readBarcodesFromImage({ path: pathSem, formats }),
+          () => BS.readBarcodesFromImage({ path: path, formats }),
+          () => BS.readBarcodesFromImage({ base64String: base64, formats }),
+          () => BS.readBarcodesFromImage({ image: base64, formats })
+        );
+      }
+      if (metodos.includes('detect')) {
+        tentativas.push(
+          () => BS.detect({ path: pathSem, formats }),
+          () => BS.detect({ path: path, formats }),
+          () => BS.detect({ base64String: base64, formats })
+        );
+      }
+      if (metodos.includes('read')) {
+        tentativas.push(
+          () => BS.read({ path: pathSem, formats }),
+          () => BS.read({ base64String: base64, formats })
+        );
+      }
+
+      for (const fn of tentativas) {
+        try {
+          const r = await fn();
+          console.log('[Barcode retorno]', r);
+
+          const barcodes = r?.barcodes ?? r?.result ?? r?.codes ?? [];
+
+          if (Array.isArray(barcodes) && barcodes.length > 0) {
+            console.log('[Todos códigos]', JSON.stringify(barcodes));
+
+            const uc = barcodes.find(b => {
+              const valor = String(b.rawValue ?? b.value ?? b.displayValue ?? '').replace(/\D/g, '');
+              return valor.length >= 18 && valor.length <= 20;
+            });
+
+            if (uc) return uc.rawValue ?? uc.value ?? uc.displayValue;
+            return barcodes[0].rawValue ?? barcodes[0].value ?? barcodes[0].displayValue;
+          }
+
+          if (r?.rawValue) return r.rawValue;
+          if (r?.value) return r.value;
+
+        } catch (e) {
+          console.warn('[Barcode tentativa falhou]', e);
+        }
+      }
+
+      return null;
+    }
+
+    // ─── Barcode/QR via ZXing (fallback web, decodifica de imagem estática) ──────
+    // Vendorizado localmente em vendor/zxing/ pelo mesmo motivo do Tesseract.
+    // Cobertura real: QR_CODE excelente, CODE_128/CODE_39/EAN_13 boas, PDF_417
+    // aceitável, DATA_MATRIX é o ponto fraco (nenhuma lib JS pura madura iguala
+    // o MLKit nativo aqui) — a heurística de UC (18-20 dígitos numéricos) e o
+    // fallback pra digitação manual já cobrem esse caso, sem precisar de uma
+    // segunda biblioteca só por causa disso.
+    let _zxingReader = null;
+    async function _getZxingReader() {
+      if (_zxingReader) return _zxingReader;
+      await carregarScript('vendor/zxing/zxing-library.min.js');
+      await carregarScript('vendor/zxing/zxing-browser.min.js');
+      const hints = new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+        ZXing.BarcodeFormat.QR_CODE,
+        ZXing.BarcodeFormat.CODE_128,
+        ZXing.BarcodeFormat.CODE_39,
+        ZXing.BarcodeFormat.EAN_13,
+        ZXing.BarcodeFormat.DATA_MATRIX,
+        ZXing.BarcodeFormat.PDF_417
+      ]);
+      _zxingReader = new ZXingBrowser.BrowserMultiFormatReader(hints);
+      return _zxingReader;
+    }
+
+    async function rodarBarcodeWeb(base64) {
+      const reader = await _getZxingReader();
+      try {
+        const resultado = await reader.decodeFromImageUrl(`data:image/jpeg;base64,${base64}`);
+        return resultado.getText();
+      } catch (err) {
+        console.warn('[Barcode web] não detectado:', err?.message ?? err);
+        return null;
+      }
+    }
+
+    // ─── Extração do Lote por linha (evita ambiguidade com UC/Peso/Barcode) ───────
+    function extrairLote(texto) {
+      const linhas = texto.split('\n').map(l => l.trim()).filter(Boolean);
+      for (let i = 0; i < linhas.length; i++) {
+        if (/lote/i.test(linhas[i])) {
+          const mesmaLinha = linhas[i].match(/lote\s*[:\-]?\s*(\d+)/i);
+          if (mesmaLinha) return mesmaLinha[1];
+          for (let j = i + 1; j < linhas.length; j++) {
+            const m = linhas[j].match(/^(\d+)/);
+            if (m) return m[1];
+            break;
+          }
+        }
+      }
+      return null;
+    }
+
+    // ─── Extração da NF (fallback quando Lote vem em branco) ─────────────────────
+    function extrairNF(texto) {
+      const m = texto.match(/NF\s*[:\-]?\s*(\d+)(?:-\d+)?/i);
+      return m ? m[1] : null;
+    }
+
+        // ─── Parser da etiqueta ───────────────────────────────────────────────────────
+      function parsearEtiqueta(texto) {
+        const t = texto.replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').replace(/[''`]/g, '').trim();
+        const tFlat = t.replace(/\n/g, ' ').replace(/ +/g, ' ');
+        const textoUpper = tFlat.toUpperCase();
+
+        let lote = extrairLote(t);
+        let loteDaNF = false;
+        if (!lote) {
+          lote = extrairNF(t);
+          loteDaNF = !!lote;
+          if (lote) console.log('[Parser] Lote em branco, usando NF como fallback:', lote);
+        }
+
+        let peso = null;
+        const numeroPesoBruto = '([\\d.,]+)';
+        const pesoPatterns = [
+          new RegExp(`Peso\\s*Li[gq]\\s*[:\\-]?\\s*${numeroPesoBruto}\\s*[Kk][Gg]`, 'i'),
+          new RegExp(`Peso\\s*L[ií]q\\.?\\s*[:\\-]?\\s*${numeroPesoBruto}\\s*[Kk][Gg]`, 'i'),
+          new RegExp(`Peso\\s*Lí[gq]\\s*[:\\-]?\\s*${numeroPesoBruto}\\s*[Kk][Gg]`, 'i'),
+          new RegExp(`Peso\\s*L[ií]g\\.?\\s*[:\\-]?\\s*${numeroPesoBruto}\\s*[Kk][Gg]`, 'i'),
+          new RegExp(`Li[gq]\\s*[.:\\-]?\\s*${numeroPesoBruto}\\s*`, 'i'),
+          new RegExp(`L[ií]q\\.?\\s*[.:\\-]?\\s*${numeroPesoBruto}\\s*`, 'i'),
+          new RegExp(`Li[gq]\\s*[.:\\-]?\\s*${numeroPesoBruto}\\s*[Kk][Gg]`, 'i'),
+          new RegExp(`L[ií]q\\.?\\s*[.:\\-]?\\s*${numeroPesoBruto}\\s*[Kk][Gg]`, 'i'),
+          new RegExp(`s*Li[gq]\\s*[.:\\-]?\\s*${numeroPesoBruto}\\s*`, 'i'),
+          new RegExp(`s*L[ií]q\\.?\\s*[.:\\-]?\\s*${numeroPesoBruto}\\s*`, 'i'),
+          new RegExp(`s*Li[gq]\\s*[.:\\-]?\\s*${numeroPesoBruto}\\s*[Kk][Gg]`, 'i'),
+          new RegExp(`s*L[ií]q\\.?\\s*[.:\\-]?\\s*${numeroPesoBruto}\\s*[Kk][Gg]`, 'i'),
+          new RegExp(`Peso\\s*Li[gq]\\s*[.:\\-]?\\s*${numeroPesoBruto}\\s*`, 'i'),
+          new RegExp(`Peso\\s*L[ií]q\\.?\\s*[.:\\-]?\\s*${numeroPesoBruto}\\s*`, 'i'),
+          new RegExp(`Quantidade\\s*[:\\-]?\\s*${numeroPesoBruto}\\s*[Kk][Gg]`, 'i'),
+          new RegExp(`Qtd\\.?\\s*[:\\-]?\\s*${numeroPesoBruto}\\s*[Kk][Gg]`, 'i'),
+          new RegExp(`Peso\\s*[:\\-]?\\s*${numeroPesoBruto}\\s*[Kk][Gg]`, 'i'),
+        ];
+        for (const re of pesoPatterns) { const m = t.match(re); if (m) { peso = normalizarPeso(m[1]); if (peso) break; } }
+
+        // ─── normalização para comparação (não altera o que é exibido) ────────────────
+        function normComp(s) { return s.toUpperCase().replace(/O/g, '0'); }
+
+        const tokensTexto = textoUpper.split(/[^A-Z0-9]+/).filter(Boolean).map(normComp);
+
+        function palavraBate(palavra) {
+          const alvo = normComp(palavra);
+          if (textoUpper.replace(/O/g, '0').includes(alvo)) return true; // substring direta (com O/0 normalizado)
+          const limite = Math.max(1, Math.ceil(alvo.length / 3));
+          return tokensTexto.some(tok => Math.abs(tok.length - alvo.length) <= limite && levenshtein(tok, alvo) <= limite);
+        }
+
+        // ─── prefixos válidos conhecidos (extraídos da própria lista) ─────────────────
+        const todosItens = [];
+        const prefixosValidos = new Set();
+        for (const s of Object.keys(listaItens)) {
+          for (const tp of Object.keys(listaItens[s])) {
+            for (const it of listaItens[s][tp]) {
+              const partes = it.split(' - ');
+              const codigo = partes[0].trim().toUpperCase();
+              const desc = (partes.slice(1).join(' - ') || '').trim().toUpperCase();
+              const pref = codigo.match(/^[A-Z]+/)?.[0] ?? '';
+              if (pref) prefixosValidos.add(pref);
+              todosItens.push({ it, setor: s, tipo: tp, codigo, desc, palavras: desc.split(/\s+/).filter(Boolean) });
+            }
+          }
+        }
+
+        function coberturaDescricao(cand) {
+          if (!cand.palavras.length) return 0;
+          const presentes = cand.palavras.filter(palavraBate).length;
+          return presentes / cand.palavras.length;
+        }
+
+        // ─── candidato por CÓDIGO ───────────────────────────────────────────────────
+        let candidatoCodigo = null;
+        let itemCode = null;
+        const aparaMatch = t.match(/[Ii]tem\s+[Aa]para\s*[:\-]?\s*([A-Z0-9]{5,7})/);
+        if (aparaMatch) itemCode = aparaMatch[1];
+        if (!itemCode) {
+          const itemMatch = t.match(/[Ii]tem\s*[:\-]?\s*([A-Z0-9]{5,7})(?!\s*[Aa]para)/);
+          if (itemMatch) itemCode = itemMatch[1];
+        }
+        if (!itemCode) {
+          const codigoMatch = t.match(/\b([A-Z0-9]{5,7})\b/);
+          if (codigoMatch) itemCode = codigoMatch[1];
+        }
+
+        if (itemCode) {
+          const raw = itemCode.trim().toUpperCase();
+          // tenta achar um prefixo CONHECIDO (2 letras) nos primeiros caracteres,
+          // mesmo que o OCR tenha lido uma letra a mais (ex: "RBO039")
+          let prefixo = '', numeroBruto = raw;
+          for (const p of prefixosValidos) {
+            if (raw.startsWith(p)) { prefixo = p; numeroBruto = raw.slice(p.length); break; }
+          }
+          // corrige letra→dígito só na parte numérica
+          const numerico = numeroBruto.replace(/O/g, '0').replace(/I/g, '1').replace(/S/g, '5').replace(/B/g, '8');
+          const codigoCorrigido = prefixo + numerico;
+
+          candidatoCodigo = todosItens.find(x => x.codigo === codigoCorrigido) || null;
+
+          if (!candidatoCodigo && prefixo) {
+            const candidatos = todosItens.filter(x => x.codigo.startsWith(prefixo));
+            if (candidatos.length) {
+              candidatos.sort((a, b) => levenshtein(a.codigo, codigoCorrigido) - levenshtein(b.codigo, codigoCorrigido));
+              if (levenshtein(candidatos[0].codigo, codigoCorrigido) <= 1) candidatoCodigo = candidatos[0];
+            }
+          }
+        }
+
+        // ─── candidato por DESCRIÇÃO (sempre calculado, com matching fuzzy) ───────────
+        let candidatoDesc = null, melhorScore = 0;
+        for (const cand of todosItens) {
+          if (!cand.palavras.length) continue;
+          const cobertura = coberturaDescricao(cand);
+          if (cobertura === 0) continue;
+          const valor = cobertura + (cobertura === 1 ? cand.palavras.length * 0.1 : 0);
+          if (valor > melhorScore) { melhorScore = valor; candidatoDesc = cand; }
+        }
+        const coberturaDescOk = candidatoDesc && coberturaDescricao(candidatoDesc) >= 0.6;
+
+        // ─── decide: código x descrição ───────────────────────────────────────────────
+        let escolhido = null;
+        if (candidatoCodigo && coberturaDescOk) {
+          const covCodigo = coberturaDescricao(candidatoCodigo);
+          const covDesc = coberturaDescricao(candidatoDesc);
+          if (candidatoCodigo.it !== candidatoDesc.it && covDesc - covCodigo >= 0.2) {
+            escolhido = candidatoDesc;
+            console.log('[Parser] descrição sobrepôs código (OCR do código suspeito):', candidatoDesc.it);
+          } else {
+            escolhido = candidatoCodigo;
+          }
+        } else if (candidatoCodigo) {
+          escolhido = candidatoCodigo;
+        } else if (coberturaDescOk) {
+          escolhido = candidatoDesc;
+        }
+
+        let item = null, setor = null, tipo = null;
+        if (escolhido) { item = escolhido.it; setor = escolhido.setor; tipo = escolhido.tipo; }
+
+        console.log('[Parser] resultado:', { lote, peso, item, setor, tipo });
+        return { lote, peso, item, setor, tipo, loteDaNF };
+      }                    
+
+    // ─── Distância de edição (Levenshtein) simples ────────────────────────────────
+    function levenshtein(a, b) {
+      const m = a.length, n = b.length;
+      const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+      for (let j = 0; j <= n; j++) dp[0][j] = j;
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          dp[i][j] = a[i - 1] === b[j - 1]
+            ? dp[i - 1][j - 1]
+            : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+        }
+      }
+      return dp[m][n];
+    }
+
+    function aplicarCamposIA(dados) {
+      let preenchidos = 0;
+
+      if (dados.setor) {
+        document.getElementById('setor').value = dados.setor;
+        atualizarTipos();
+      }
+      if (dados.tipo) {
+        const produtoEl = document.getElementById('produto');
+        for (const opt of produtoEl.options) {
+          if (opt.value === dados.tipo) { produtoEl.value = dados.tipo; break; }
+        }
+        atualizarItens();
+        highlightField('produto');
+        preenchidos++;
+      }
+      if (dados.item) {
+        const itemEl = document.getElementById('item');
+        const codigo = dados.item.trim().toUpperCase().split(/[\s\-]/)[0];
+        for (const opt of itemEl.options) {
+          if (opt.value.trim().toUpperCase().split(/[\s\-]/)[0] === codigo) {
+            itemEl.value = opt.value;
+            highlightField('item');
+            preenchidos++;
+            break;
+          }
+        }
+      }
+      for (const [chave, id] of [['lote', 'lote'], ['peso', 'peso']]) {
+        if (chave === 'lote' && dados.lote) {
+          const lote = normalizarLote(dados.lote, dados.loteDaNF);
+          if (lote) {
+            document.getElementById('lote').value = lote;
+            highlightField('lote');
+            preenchidos++;
+          } else {
+            toast(`Lote OCR inválido: "${dados.lote}"`, 'error', 5000);
+          }
+        } else if (dados[chave]) {
+          document.getElementById(id).value = dados[chave];
+          highlightField(id);
+          preenchidos++;
+        }
+      }
+
+      if (preenchidos > 0) {
+        toast(`${preenchidos} campo(s) preenchido(s) ✓`, 'success', 4000);
+      } else {
+        toast('Nenhum dado identificado. Tente com melhor iluminação.', 'info', 4000);
+      }
+    }
+
+    // ─── Inicialização ────────────────────────────────────────────────────────────
+    let localEscolhidoManualmente = false;
+    function marcarLocalManual() {
+      localEscolhidoManualmente = true;
+    }
+
+    // ─── Lista de itens vinda do repositório (itens.json) ─────────────────────────
+    const ITENS_CACHE_KEY = 'valgroup_mg10_itens_cache';
+    const SENHA_ITENS_PADRAO = 'Producao777*'; // usada só na 1ª vez, antes do itens.json existir
+    let senhaItensAtual = SENHA_ITENS_PADRAO;
+
+    async function carregarItensRemoto() {
+      // Primeiro aplica o que estiver em cache local (rápido, funciona offline)
+      try {
+        const Prefs = window?.Capacitor?.Plugins?.Preferences;
+        const raw = Prefs
+          ? (await Prefs.get({ key: ITENS_CACHE_KEY }))?.value
+          : localStorage.getItem(ITENS_CACHE_KEY);
+        if (raw) {
+          listaItens = JSON.parse(raw);
+          if (listaItens._senha) senhaItensAtual = listaItens._senha;
+          atualizarTipos();
+        }
+      } catch (e) { console.warn('[Itens] falha ao ler cache local:', e); }
+
+      // Depois tenta buscar a versão mais recente no GitHub e atualiza tudo
+      try {
+        const token = await getGithubToken();
+        if (!token) return;
+
+        const resp = await githubRequest('GET', ITENS_JSON_PATH, null, token);
+        if (resp.ok && resp.data?.content) {
+          const novaLista = JSON.parse(base64Utf8Decode(resp.data.content));
+          listaItens = novaLista;
+          if (novaLista._senha) senhaItensAtual = novaLista._senha;
+          atualizarTipos();
+
+          const raw = JSON.stringify(novaLista);
+          const Prefs = window?.Capacitor?.Plugins?.Preferences;
+          if (Prefs) { await Prefs.set({ key: ITENS_CACHE_KEY, value: raw }); }
+          else { localStorage.setItem(ITENS_CACHE_KEY, raw); }
+
+          console.log('[Itens] lista atualizada a partir do GitHub (itens.json)');
+        } else if (resp.status === 404) {
+          console.log('[Itens] itens.json não existe no repositório ainda — usando lista padrão/cache.');
+        }
+      } catch (err) {
+        console.warn('[Itens] falha ao buscar itens.json, mantendo lista em cache/padrão:', err);
+      }
+    }
+
+    // ─── Editor de itens (protegido por senha guardada no próprio itens.json,
+    // no campo "_senha" — assim dá pra trocar a senha sem mexer no código do app) ──
+    let itensEditorSha = null;
+    let itensEditData = null;   // { Setor: { Tipo: [itens...] } } — sem o campo _senha
+    let setorEditorAtual = null;
+
+    function abrirItensEditor() {
+      document.getElementById('itensSenhaInput').value = '';
+      document.getElementById('itensSenhaEtapa').style.display = '';
+      document.getElementById('itensEdicaoEtapa').style.display = 'none';
+      document.getElementById('itensEditorErro').style.display = 'none';
+      document.getElementById('itensEditorModal').classList.add('show');
+    }
+
+    function fecharItensEditor() {
+      document.getElementById('itensEditorModal').classList.remove('show');
+    }
+
+    async function verificarSenhaItens() {
+      const senhaDigitada = document.getElementById('itensSenhaInput').value;
+
+      const token = await getGithubToken();
+      if (!token) { toast('Configure o token do GitHub primeiro.', 'error'); fecharItensEditor(); abrirConfig(); return; }
+
+      setLoad(true, 'Verificando senha...');
+      try {
+        const resp = await githubRequest('GET', ITENS_JSON_PATH, null, token);
+        let objAtual;
+        if (resp.ok && resp.data?.content) {
+          objAtual = JSON.parse(base64Utf8Decode(resp.data.content));
+          itensEditorSha = resp.data.sha;
+          if (objAtual._senha) senhaItensAtual = objAtual._senha;
+        } else {
+          // itens.json ainda não existe no repositório — parte da lista atual em
+          // memória e usa a senha padrão (até alguém definir uma própria salvando)
+          objAtual = { _senha: senhaItensAtual, ...listaItens };
+          itensEditorSha = null;
+        }
+
+        setLoad(false);
+        if (senhaDigitada !== senhaItensAtual) {
+          toast('Senha incorreta.', 'error');
+          return;
+        }
+
+        iniciarEditorEstruturado(objAtual);
+        document.getElementById('itensSenhaEtapa').style.display = 'none';
+        document.getElementById('itensEdicaoEtapa').style.display = '';
+      } catch (err) {
+        setLoad(false);
+        console.error(err);
+        toast('Falha ao verificar a senha (erro de conexão com o GitHub).', 'error');
+      }
+    }
+
+    // ─── Painel estruturado: setor → tipo → itens ──────────────────────────────────
+    function iniciarEditorEstruturado(objAtual) {
+      const clone = JSON.parse(JSON.stringify(objAtual));
+      const senha = clone._senha;
+      delete clone._senha;
+      itensEditData = clone;
+      document.getElementById('itensEditSenha').value = senha || senhaItensAtual;
+      const setores = Object.keys(itensEditData);
+      setorEditorAtual = setores[0] || null;
+      renderSetorSelectEditor();
+      renderTiposEditor();
+    }
+
+    function renderSetorSelectEditor() {
+      const sel = document.getElementById('itensEditSetorSelect');
+      sel.innerHTML = '';
+      Object.keys(itensEditData).forEach(s => {
+        const o = document.createElement('option');
+        o.value = s;
+        o.textContent = s;
+        sel.appendChild(o);
+      });
+      if (setorEditorAtual) sel.value = setorEditorAtual;
+    }
+
+    function trocarSetorEditor() {
+      setorEditorAtual = document.getElementById('itensEditSetorSelect').value;
+      renderTiposEditor();
+    }
+
+    function adicionarSetorEditor() {
+      const nome = prompt('Nome do novo setor:');
+      if (!nome) return;
+      const n = nome.trim();
+      if (!n) return;
+      if (itensEditData[n]) { toast('Esse setor já existe.', 'error'); return; }
+      itensEditData[n] = {};
+      setorEditorAtual = n;
+      renderSetorSelectEditor();
+      renderTiposEditor();
+    }
+
+    function removerSetorEditor() {
+      if (!setorEditorAtual) return;
+      if (!confirm(`Excluir o setor "${setorEditorAtual}" e todos os tipos/itens dele?`)) return;
+      delete itensEditData[setorEditorAtual];
+      setorEditorAtual = Object.keys(itensEditData)[0] || null;
+      renderSetorSelectEditor();
+      renderTiposEditor();
+    }
+
+    function adicionarTipoEditor() {
+      if (!setorEditorAtual) { toast('Crie um setor primeiro.', 'error'); return; }
+      const nome = prompt('Nome do novo tipo (ex: Acabado, Subproduto...):');
+      if (!nome) return;
+      const n = nome.trim();
+      if (!n) return;
+      const tipos = itensEditData[setorEditorAtual];
+      if (tipos[n]) { toast('Esse tipo já existe nesse setor.', 'error'); return; }
+      tipos[n] = [];
+      renderTiposEditor();
+    }
+
+    function renderTiposEditor() {
+      const cont = document.getElementById('itensEditTiposContainer');
+      cont.innerHTML = '';
+      if (!setorEditorAtual || !itensEditData[setorEditorAtual]) return;
+      const tipos = itensEditData[setorEditorAtual];
+
+      Object.keys(tipos).forEach(tipoNome => {
+        const box = document.createElement('div');
+        box.style.cssText = 'background:var(--input-bg);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--r);padding:12px;margin-bottom:12px;';
+
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:10px;';
+
+        const inputNome = document.createElement('input');
+        inputNome.type = 'text';
+        inputNome.value = tipoNome;
+        inputNome.style.cssText = 'flex:1;font-weight:600;';
+        inputNome.addEventListener('change', () => {
+          const novo = inputNome.value.trim();
+          if (!novo || novo === tipoNome) { inputNome.value = tipoNome; return; }
+          if (tipos[novo]) { toast('Já existe um tipo com esse nome.', 'error'); inputNome.value = tipoNome; return; }
+          tipos[novo] = tipos[tipoNome];
+          delete tipos[tipoNome];
+          renderTiposEditor();
+        });
+
+        const btnExcluirTipo = document.createElement('button');
+        btnExcluirTipo.type = 'button';
+        btnExcluirTipo.textContent = 'Excluir tipo';
+        btnExcluirTipo.style.cssText = 'flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:var(--r);color:var(--danger);font-size:11px;padding:8px 10px;cursor:pointer;white-space:nowrap;';
+        btnExcluirTipo.addEventListener('click', () => {
+          if (!confirm(`Excluir o tipo "${tipoNome}" e todos os itens dele?`)) return;
+          delete tipos[tipoNome];
+          renderTiposEditor();
+        });
+
+        header.appendChild(inputNome);
+        header.appendChild(btnExcluirTipo);
+        box.appendChild(header);
+
+        const itensCont = document.createElement('div');
+        itensCont.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-bottom:10px;';
+
+        tipos[tipoNome].forEach((item, idx) => {
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;gap:6px;';
+
+          const inputItem = document.createElement('input');
+          inputItem.type = 'text';
+          inputItem.value = item;
+          inputItem.placeholder = 'CÓDIGO - DESCRIÇÃO';
+          inputItem.style.cssText = 'flex:1;font-size:12.5px;';
+          inputItem.addEventListener('change', () => {
+            tipos[tipoNome][idx] = inputItem.value;
+          });
+
+          const btnRemoverItem = document.createElement('button');
+          btnRemoverItem.type = 'button';
+          btnRemoverItem.textContent = '✕';
+          btnRemoverItem.style.cssText = 'flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:var(--r);color:var(--danger);width:34px;cursor:pointer;';
+          btnRemoverItem.addEventListener('click', () => {
+            tipos[tipoNome].splice(idx, 1);
+            renderTiposEditor();
+          });
+
+          row.appendChild(inputItem);
+          row.appendChild(btnRemoverItem);
+          itensCont.appendChild(row);
+        });
+
+        box.appendChild(itensCont);
+
+        const btnAddItem = document.createElement('button');
+        btnAddItem.type = 'button';
+        btnAddItem.textContent = '+ Item';
+        btnAddItem.style.cssText = 'width:100%;background:transparent;border:1px dashed var(--border);border-radius:var(--r);color:var(--accent2);font-size:12px;padding:8px 12px;cursor:pointer;';
+        btnAddItem.addEventListener('click', () => {
+          tipos[tipoNome].push('');
+          renderTiposEditor();
+        });
+        box.appendChild(btnAddItem);
+
+        cont.appendChild(box);
+      });
+    }
+
+    async function salvarItensEditor() {
+      const erroEl = document.getElementById('itensEditorErro');
+      erroEl.style.display = 'none';
+
+      if (!itensEditData) return;
+
+      // Remove linhas de item deixadas em branco antes de salvar
+      Object.values(itensEditData).forEach(tipos => {
+        Object.keys(tipos).forEach(tipoNome => {
+          tipos[tipoNome] = tipos[tipoNome].filter(i => i && i.trim());
+        });
+      });
+
+      const senha = document.getElementById('itensEditSenha').value.trim() || senhaItensAtual;
+      const novoObj = { _senha: senha, ...itensEditData };
+
+      const token = await getGithubToken();
+      if (!token) { toast('Configure o token do GitHub primeiro.', 'error'); return; }
+
+      setLoad(true, 'Salvando lista de itens...');
+      try {
+        const body = {
+          message: 'Atualização da lista de itens (itens.json)',
+          content: base64Utf8(JSON.stringify(novoObj, null, 2)),
+          branch: GITHUB_BRANCH
+        };
+        if (itensEditorSha) body.sha = itensEditorSha;
+
+        const resp = await githubRequest('PUT', ITENS_JSON_PATH, body, token);
+        setLoad(false);
+        if (resp.ok) {
+          listaItens = novoObj;
+          senhaItensAtual = senha;
+          atualizarTipos();
+          const raw = JSON.stringify(novoObj);
+          const Prefs = window?.Capacitor?.Plugins?.Preferences;
+          if (Prefs) { await Prefs.set({ key: ITENS_CACHE_KEY, value: raw }); }
+          else { localStorage.setItem(ITENS_CACHE_KEY, raw); }
+          toast('Lista de itens atualizada!', 'success');
+          fecharItensEditor();
+        } else if (resp.status === 409) {
+          erroEl.textContent = 'O arquivo mudou no GitHub desde que você abriu o editor. Feche e abra de novo para pegar a versão mais recente.';
+          erroEl.style.display = 'block';
+        } else if (resp.status === 401 || resp.status === 403) {
+          toast('Token inválido ou sem permissão.', 'error'); abrirConfig();
+        } else {
+          erroEl.textContent = `Erro ao salvar (HTTP ${resp.status}).`;
+          erroEl.style.display = 'block';
+        }
+      } catch (err) {
+        setLoad(false);
+        console.error(err);
+        erroEl.textContent = 'Falha de conexão ao salvar.';
+        erroEl.style.display = 'block';
+      }
+    }
+
+    // Bloqueia o gesto de pinça (pinch-to-zoom) do Safari iOS — a meta tag
+    // viewport com user-scalable=no cobre a maioria dos casos, mas o Safari
+    // historicamente ainda dispara esses eventos proprietários em alguns
+    // cenários. Em outros navegadores esses eventos simplesmente não existem.
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
+    document.addEventListener('gesturechange', (e) => e.preventDefault());
+
+    // ─── PWA: Service Worker + aviso de instalação (só fora do Capacitor) ─────────
+    // O SW só faz sentido rodando como site — dentro da WebView do Capacitor os
+    // assets já vêm empacotados no APK, então registrar um SW ali não traz
+    // ganho nenhum e é um risco de comportamento inesperado.
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.Capacitor) return;
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(err => console.warn('[SW] falha ao registrar:', err));
+      }
+
+      const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+      const jaInstalado = navigator.standalone === true
+        || window.matchMedia('(display-mode: standalone)').matches;
+      const JA_AVISOU_KEY = 'valgroup_mg10_aviso_instalar_visto';
+
+      if (ehIOS && !jaInstalado && !localStorage.getItem(JA_AVISOU_KEY)) {
+        setTimeout(() => {
+          toast('Dica: toque em Compartilhar → "Adicionar à Tela de Início" para instalar o app e evitar perder dados salvos localmente.', 'info', 8000);
+          localStorage.setItem(JA_AVISOU_KEY, '1');
+        }, 1500);
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('setor').addEventListener('change', atualizarTipos);
+      document.getElementById('produto').addEventListener('change', atualizarItens);
+      atualizarTipos();
+      carregarItensRemoto();
+      document.getElementById('pastaExportacoesLabel').textContent = PASTA_EXPORTACOES;
+
+      setTimeout(() => {
+        console.log('[GPS] Disparando detecção automática de localização...');
+        carregarCachePosicao().then(() => detectarLocalGPS());
+        const plugins = Object.keys(window?.Capacitor?.Plugins ?? {});
+        console.log('[Capacitor] Plugins disponíveis:', plugins.join(', '));
+      }, 500);
+
+      // Refaz a detecção a cada 1 minuto, mantendo o cache de posição atualizado
+      // e acompanhando se a pessoa mudou de zona. Não sobrescreve se o usuário
+      // já escolheu o local manualmente.
+      setInterval(() => {
+        const btn = document.getElementById('btnGps');
+        if (localEscolhidoManualmente || btn?.disabled) return;
+        console.log('[GPS] Atualização automática periódica (1 min)...');
+        detectarLocalGPS();
+      }, 60000);
+    });
+
+    // ─── Submit (grava um arquivo .json por lançamento no GitHub) ─────────────────
+    function buildAnswers() {
+      const valorItem = gv('item');
+      const partes = valorItem.split(' - ');
+      const codigo = partes[0] ? partes[0].trim() : '';
+      const descricao = partes.length > 1 ? partes.slice(1).join(' - ').trim() : '';
+
+      return {
+        data_inventario: new Date().toISOString().split('T')[0],
+        nome: gv('nome'),
+        matricula: gv('matricula'),
+        setor: gv('setor'),
+        produto: gv('produto'),
+        item: codigo,
+        desc_material: descricao,
+        uc: gv('uc'),
+        lote: gv('lote'),
+        peso: gv('peso'),
+        local: gv('local'),
+        observacoes: gv('observacoes')
+      };
+    }
+
+    // UTF-8 safe base64 encode (btoa puro quebra com acentos)
+    function base64Utf8(str) {
+      return btoa(unescape(encodeURIComponent(str)));
+    }
+
+    // Cada lançamento vira um arquivo próprio (nome único). Isso evita por completo
+    // o conflito de "duas pessoas gravando ao mesmo tempo": não é preciso ler o SHA
+    // do arquivo antes de gravar, então não há disputa/lock — cada envio é uma
+    // criação de arquivo independente, do mesmo jeito que cada resposta do Forms é
+    // um registro isolado.
+    function nomeArquivoLancamento(dados) {
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const rand = Math.random().toString(36).slice(2, 8);
+      return `${GITHUB_PATH_PREFIX}/${ts}_${dados.matricula || 'na'}_${rand}.json`;
+    }
+
+    async function gravarNoGithub(caminho, conteudoObj, token) {
+      const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${caminho}`;
+      const body = {
+        message: `Lançamento MG10: ${conteudoObj.matricula} - ${conteudoObj.item}`,
+        content: base64Utf8(JSON.stringify(conteudoObj, null, 2)),
+        branch: GITHUB_BRANCH
+      };
+      const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github+json',
+        'Authorization': `Bearer ${token}`
+      };
+
+      if (window.Capacitor?.Plugins?.CapacitorHttp) {
+        const r = await window.Capacitor.Plugins.CapacitorHttp.request({
+          url, method: 'PUT', headers, data: body
+        });
+        return { ok: r.status === 200 || r.status === 201, status: r.status };
+      } else {
+        const r = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
+        return { ok: r.ok, status: r.status };
+      }
+    }
+
+    async function lancar() {
+      const obrigatorios = [['nome', 'Nome'], ['matricula', 'Matrícula'], ['setor', 'Setor'], ['produto', 'Tipo'], ['item', 'Item'], ['local', 'Local']];
+      for (const [id, nome] of obrigatorios) {
+        if (!gv(id)?.trim()) { toast(`Campo obrigatório: ${nome}`, 'error'); return; }
+      }
+      if (gv('matricula').length !== 4) { toast('Matrícula deve conter 4 dígitos', 'error'); return; }
+
+      // Exige pelo menos um dos campos preenchido
+      const uc = document.getElementById('uc')?.value?.trim();
+      const lote = document.getElementById('lote')?.value?.trim();
+      const peso = document.getElementById('peso')?.value?.trim();
+
+      if (!uc && !lote && !peso) {
+        toast(
+          'Preencha pelo menos um campo: UC, Lote ou Peso.',
+          'error',
+          4000
+        );
+        return;
+      }
+
+      const token = await getGithubToken();
+      if (!token) {
+        toast('Configure o token do GitHub primeiro.', 'error', 4000);
+        abrirConfig();
+        return;
+      }
+
+      const dados = buildAnswers();
+      const caminho = nomeArquivoLancamento(dados);
+      const itemFila = {
+        id: caminho,
+        path: caminho,
+        dados,
+        tentativas: 0,
+        criadoEm: new Date().toISOString(),
+        ultimoErro: null
+      };
+
+      // ─── Envio otimista: entra na fila local (persistida) e o formulário já
+      // limpa na hora. O envio de verdade acontece em segundo plano.
+      await adicionarNaFila(itemFila);
+      toast('Lançado com sucesso!', 'success', 4000);
+      resetForm();
+
+      processarFila(); // não aguarda — roda em background
+    }
+
+    function resetForm() {
+      document.getElementById('peso').value = '';
+      document.getElementById('lote').value = '';
+      document.getElementById('uc').value = '';
+      localEscolhidoManualmente = false;
+    }
+
+    // ─── Abas ─────────────────────────────────────────────────────────────────────
+    function mudarAba(aba) {
+      document.getElementById('viewNovo').style.display = aba === 'novo' ? '' : 'none';
+      document.getElementById('viewLista').style.display = aba === 'lista' ? '' : 'none';
+      document.getElementById('viewExportados').style.display = aba === 'exportados' ? '' : 'none';
+      document.getElementById('viewPendentes').style.display = aba === 'pendentes' ? '' : 'none';
+      document.getElementById('tabBtnNovo').classList.toggle('active', aba === 'novo');
+      document.getElementById('tabBtnLista').classList.toggle('active', aba === 'lista');
+      document.getElementById('btnExportadosHeader').style.color = aba === 'exportados' ? 'var(--accent2)' : 'var(--muted)';
+      document.getElementById('btnExportadosHeader').style.borderColor = aba === 'exportados' ? 'var(--accent)' : 'var(--border)';
+      document.getElementById('btnPendentesHeader').style.color = aba === 'pendentes' ? 'var(--accent2)' : 'var(--muted)';
+      document.getElementById('btnPendentesHeader').style.borderColor = aba === 'pendentes' ? 'var(--accent)' : 'var(--border)';
+      if (aba === 'exportados') renderExportadosCards();
+    }
+
+    // ─── Fila local de envio (persiste mesmo fechando o app) ──────────────────────
+    const FILA_KEY = 'valgroup_mg10_fila_envio';
+
+    async function getFila() {
+      const Prefs = window?.Capacitor?.Plugins?.Preferences;
+      let raw;
+      if (Prefs) {
+        const r = await Prefs.get({ key: FILA_KEY });
+        raw = r?.value;
+      } else {
+        raw = localStorage.getItem(FILA_KEY);
+      }
+      try { return raw ? JSON.parse(raw) : []; } catch (e) { return []; }
+    }
+
+    async function setFila(fila) {
+      const raw = JSON.stringify(fila);
+      const Prefs = window?.Capacitor?.Plugins?.Preferences;
+      if (Prefs) {
+        await Prefs.set({ key: FILA_KEY, value: raw });
+      } else {
+        localStorage.setItem(FILA_KEY, raw);
+      }
+    }
+
+    async function adicionarNaFila(item) {
+      const fila = await getFila();
+      fila.push(item);
+      await setFila(fila);
+      await renderFilaEAba();
+    }
+
+    async function removerDaFila(id) {
+      const fila = await getFila();
+      const nova = fila.filter(i => i.id !== id);
+      await setFila(nova);
+      await renderFilaEAba();
+    }
+
+    async function atualizarItemFila(id, patch) {
+      const fila = await getFila();
+      const idx = fila.findIndex(i => i.id === id);
+      if (idx >= 0) {
+        fila[idx] = { ...fila[idx], ...patch };
+        await setFila(fila);
+        await renderFilaEAba();
+      }
+    }
+
+    async function renderFilaEAba() {
+      const fila = await getFila();
+      const btnPend = document.getElementById('btnPendentesHeader');
+      const badge = document.getElementById('badgePendentes');
+      btnPend.style.display = fila.length ? 'flex' : 'none';
+      badge.style.display = fila.length ? 'flex' : 'none';
+      badge.textContent = fila.length;
+
+      // Se a aba pendentes estava visível e a fila esvaziou, volta pra aba "Novo"
+      if (!fila.length && document.getElementById('viewPendentes').style.display !== 'none') {
+        mudarAba('novo');
+      }
+
+      const cont = document.getElementById('pendentesCards');
+      if (!cont) return;
+      cont.innerHTML = '';
+      fila.forEach(item => {
+        const d = item.dados;
+        const div = document.createElement('div');
+        div.className = 'lc-card';
+        const statusTxt = item.enviando
+          ? '<span style="color:var(--accent2);">Enviando...</span>'
+          : item.ultimoErro
+            ? `<span style="color:var(--danger);">Erro: ${item.ultimoErro}</span>`
+            : '<span class="muted">Aguardando envio...</span>';
+        div.innerHTML = `
+          <div class="lc-info">
+            <b>${d.nome || '—'}</b> <span class="muted">(${d.matricula || '—'})</span><br>
+            <span class="muted">${d.data_inventario || '—'} · ${d.setor || ''} · ${d.item || ''} · Peso: ${d.peso || '—'}</span><br>
+            ${statusTxt}
+          </div>`;
+        cont.appendChild(div);
+      });
+    }
+
+    let filaProcessando = false;
+
+    async function processarFila() {
+      if (filaProcessando) return; // evita rodar duas vezes ao mesmo tempo
+      filaProcessando = true;
+
+      const token = await getGithubToken();
+      if (!token) { filaProcessando = false; return; }
+
+      let fila = await getFila();
+      for (const item of fila) {
+        await atualizarItemFila(item.id, { enviando: true, ultimoErro: null });
+        try {
+          const resp = await gravarNoGithub(item.path, item.dados, token);
+          if (resp.ok) {
+            await removerDaFila(item.id);
+          } else if (resp.status === 401 || resp.status === 403) {
+            await atualizarItemFila(item.id, { enviando: false, ultimoErro: 'token inválido/sem permissão' });
+            toast('Token inválido. Configure novamente.', 'error', 4000);
+            break; // não adianta insistir nos próximos com o mesmo token
+          } else if (resp.status === 422) {
+            // arquivo já existe (provável duplicata de um envio anterior) — considera enviado
+            await removerDaFila(item.id);
+          } else {
+            await atualizarItemFila(item.id, { enviando: false, ultimoErro: `HTTP ${resp.status}` });
+          }
+        } catch (err) {
+          await atualizarItemFila(item.id, { enviando: false, ultimoErro: 'sem conexão' });
+          break; // provavelmente offline, para de tentar os próximos agora
+        }
+      }
+      filaProcessando = false;
+    }
+
+    // Tenta enviar pendentes assim que o app abre e sempre que a conexão voltar
+    document.addEventListener('DOMContentLoaded', async () => {
+      await renderFilaEAba();
+      processarFila();
+    });
+    window.addEventListener('online', processarFila);
+
+    // ─── Lançamentos (listar / editar / exportar) ──────────────────────────────────
+    let lancamentosCache = []; // [{path, sha, dados:{...}}]
+
+    function base64Utf8Decode(b64) {
+      return decodeURIComponent(escape(atob(b64.replace(/\n/g, ''))));
+    }
+
+    async function githubRequest(method, caminho, body, token) {
+      const url = caminho.startsWith('http')
+        ? caminho
+        : `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${caminho}?ref=${GITHUB_BRANCH}`;
+      const headers = {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': `Bearer ${token}`
+      };
+      if (body) headers['Content-Type'] = 'application/json';
+
+      if (window.Capacitor?.Plugins?.CapacitorHttp) {
+        const r = await window.Capacitor.Plugins.CapacitorHttp.request({
+          url, method, headers, data: body
+        });
+        return { ok: r.status >= 200 && r.status < 300, status: r.status, data: r.data };
+      } else {
+        const r = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+        const data = r.status !== 204 ? await r.json().catch(() => null) : null;
+        return { ok: r.ok, status: r.status, data };
+      }
+    }
+
+    // Baixa o .zip do repositório inteiro (1 requisição) e retorna os bytes.
+    async function baixarZipRepositorio(token) {
+      const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/zipball/${GITHUB_BRANCH}`;
+      const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' };
+
+      if (window.Capacitor?.Plugins?.CapacitorHttp) {
+        const r = await window.Capacitor.Plugins.CapacitorHttp.request({
+          url, method: 'GET', headers, responseType: 'arraybuffer'
+        });
+        if (r.status < 200 || r.status >= 300) throw new Error('HTTP ' + r.status);
+        // O plugin nativo costuma devolver binário como string base64
+        if (typeof r.data === 'string') {
+          const bin = atob(r.data);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          return bytes;
+        }
+        return r.data;
+      } else {
+        const r = await fetch(url, { headers });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return await r.arrayBuffer();
+      }
+    }
+
+    async function carregarLancamentos() {
+      const token = await getGithubToken();
+      if (!token) { toast('Configure o token do GitHub primeiro.', 'error'); abrirConfig(); return; }
+
+      const info = document.getElementById('listaInfo');
+      const btnTxt = document.getElementById('btnCarregarTxt');
+      btnTxt.textContent = 'Carregando...';
+      info.textContent = 'Buscando lista de arquivos...';
+
+      try {
+        const listaResp = await githubRequest('GET', GITHUB_PATH_PREFIX, null, token);
+        if (!listaResp.ok) {
+          if (listaResp.status === 404) {
+            lancamentosCache = [];
+            renderListaCards();
+            info.textContent = 'Nenhum lançamento encontrado ainda.';
+          } else if (listaResp.status === 401 || listaResp.status === 403) {
+            toast('Token inválido ou sem permissão.', 'error'); abrirConfig();
+          } else {
+            toast('Erro ao buscar lista no GitHub.', 'error');
+          }
+          btnTxt.textContent = 'Carregar';
+          return;
+        }
+
+        const arquivos = (listaResp.data || []).filter(f => f.type === 'file' && f.name.endsWith('.json'));
+        // Mapa nome do arquivo → sha, usado pra casar com o conteúdo extraído do zip
+        const shaPorNome = new Map(arquivos.map(a => [a.name, a.sha]));
+        let itens = [];
+
+        // ─── Método 1 (rápido): baixa o repositório inteiro em .zip e lê localmente
+        try {
+          info.textContent = 'Baixando dados do repositório...';
+          const zipBytes = await baixarZipRepositorio(token);
+          info.textContent = 'Descompactando e lendo lançamentos...';
+          const zip = await JSZip.loadAsync(zipBytes);
+
+          const entradas = Object.values(zip.files).filter(f =>
+            !f.dir && f.name.includes(`/${GITHUB_PATH_PREFIX}/`) && f.name.endsWith('.json')
+          );
+
+          const conteudos = await Promise.all(entradas.map(async f => {
+            const nome = f.name.split('/').pop();
+            try {
+              const texto = await f.async('string');
+              return { nome, dados: JSON.parse(texto) };
+            } catch (e) {
+              console.warn('[Lançamentos] falha ao ler do zip:', nome, e);
+              return null;
+            }
+          }));
+
+          itens = conteudos
+            .filter(Boolean)
+            .filter(c => shaPorNome.has(c.nome)) // ignora arquivos que não estão mais na listagem atual
+            .map(c => ({ path: `${GITHUB_PATH_PREFIX}/${c.nome}`, sha: shaPorNome.get(c.nome), dados: c.dados }));
+
+          console.log(`[Lançamentos] ${itens.length} lançamentos lidos via zip do repositório`);
+        } catch (errZip) {
+          console.warn('[Lançamentos] método via zip falhou, caindo para busca em lotes:', errZip);
+        }
+
+        // ─── Método 2 (reserva): se o zip falhar por qualquer motivo, busca em
+        // lotes paralelos — mais lento, mas não depende do zipball funcionar
+        if (!itens.length && arquivos.length) {
+          const CONCORRENCIA = 15;
+
+          async function baixarConteudo(arq) {
+            if (arq.download_url) {
+              try {
+                if (window.Capacitor?.Plugins?.CapacitorHttp) {
+                  const r = await window.Capacitor.Plugins.CapacitorHttp.request({
+                    url: arq.download_url, method: 'GET'
+                  });
+                  if (r.status >= 200 && r.status < 300) {
+                    return typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+                  }
+                } else {
+                  const r = await fetch(arq.download_url);
+                  if (r.ok) return await r.json();
+                }
+              } catch (e) { /* cai na reserva abaixo */ }
+            }
+            const fResp = await githubRequest('GET', arq.path, null, token);
+            if (fResp.ok && fResp.data?.content) {
+              return JSON.parse(base64Utf8Decode(fResp.data.content));
+            }
+            throw new Error('Falha ao baixar ' + arq.path);
+          }
+
+          for (let i = 0; i < arquivos.length; i += CONCORRENCIA) {
+            const lote = arquivos.slice(i, i + CONCORRENCIA);
+            info.textContent = `Carregando ${Math.min(i + lote.length, arquivos.length)} de ${arquivos.length}...`;
+
+            const resultados = await Promise.allSettled(lote.map(arq => baixarConteudo(arq)));
+            resultados.forEach((res, idx) => {
+              const arq = lote[idx];
+              if (res.status === 'fulfilled') {
+                itens.push({ path: arq.path, sha: arq.sha, dados: res.value });
+              } else {
+                console.warn('[Lançamentos] falha ao ler', arq.path, res.reason);
+              }
+            });
+          }
+        }
+
+        // Mais recentes primeiro (nome do arquivo começa com timestamp ISO)
+        itens.sort((a, b) => b.path.localeCompare(a.path));
+
+        lancamentosCache = itens;
+        renderListaCards();
+        popularUsuariosExport();
+        info.textContent = `${itens.length} lançamento(s) carregado(s).`;
+      } catch (err) {
+        console.error(err);
+        toast('Falha ao carregar lançamentos.', 'error');
+        info.textContent = 'Falha ao carregar.';
+      }
+      btnTxt.textContent = 'Carregar';
+    }
+
+    function renderListaCards() {
+      const cont = document.getElementById('listaCards');
+      cont.innerHTML = '';
+      lancamentosCache.forEach((item, idx) => {
+        const d = item.dados;
+        const div = document.createElement('div');
+        div.className = 'lc-card';
+        div.innerHTML = `
+          <div class="lc-info">
+            <b>${d.nome || '—'}</b> <span class="muted">(${d.matricula || '—'})</span><br>
+            <span class="muted">${d.data_inventario || '—'} · ${d.setor || ''} · ${d.item || ''}</span><br>
+            <span class="muted">Peso: ${d.peso || '—'} · Lote: ${d.lote || '—'} · Local: ${d.local || '—'}</span>
+            ${d.observacoes ? `<br><span class="muted">Obs: ${d.observacoes}</span>` : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+            <button type="button" class="lc-edit-btn" onclick="abrirEdicao(${idx})" title="Editar">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+              </svg>
+            </button>
+            <button type="button" class="lc-edit-btn" style="color:var(--danger);" onclick="confirmarExclusao(${idx})" title="Excluir">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M3 6h18" />
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6M14 11v6" />
+              </svg>
+            </button>
+          </div>`;
+        cont.appendChild(div);
+      });
+    }
+
+    let exclusaoIndexAtual = null;
+
+    function confirmarExclusao(idx) {
+      const d = lancamentosCache[idx].dados;
+      exclusaoIndexAtual = idx;
+      if (!confirm(`Excluir o lançamento de ${d.nome || 'usuário'} (${d.matricula || '—'}) — ${d.item || ''}? Essa ação não pode ser desfeita.`)) {
+        exclusaoIndexAtual = null;
+        return;
+      }
+      excluirLancamento();
+    }
+
+    async function excluirLancamento() {
+      if (exclusaoIndexAtual === null) return;
+      const token = await getGithubToken();
+      if (!token) { toast('Configure o token do GitHub primeiro.', 'error'); abrirConfig(); return; }
+
+      const item = lancamentosCache[exclusaoIndexAtual];
+      setLoad(true, 'Excluindo lançamento...');
+      try {
+        const body = {
+          message: `Exclusão lançamento: ${item.dados.matricula} - ${item.dados.item}`,
+          sha: item.sha,
+          branch: GITHUB_BRANCH
+        };
+        const resp = await githubRequest('DELETE', item.path, body, token);
+        setLoad(false);
+        if (resp.ok) {
+          lancamentosCache.splice(exclusaoIndexAtual, 1);
+          renderListaCards();
+          popularUsuariosExport();
+          toast('Lançamento excluído.', 'success');
+        } else if (resp.status === 409) {
+          toast('Arquivo mudou no GitHub. Recarregue a lista e tente de novo.', 'error', 5000);
+        } else if (resp.status === 401 || resp.status === 403) {
+          toast('Token inválido ou sem permissão.', 'error'); abrirConfig();
+        } else {
+          toast('Erro ao excluir lançamento.', 'error');
+        }
+      } catch (err) {
+        setLoad(false);
+        toast('Falha ao excluir. Verifique a conexão.', 'error');
+      }
+      exclusaoIndexAtual = null;
+    }
+
+    let edicaoIndexAtual = null;
+
+    function abrirEdicao(idx) {
+      edicaoIndexAtual = idx;
+      const d = lancamentosCache[idx].dados;
+      document.getElementById('editNome').value = d.nome || '';
+      document.getElementById('editMatricula').value = d.matricula || '';
+      document.getElementById('editSetor').value = d.setor || 'Resinas';
+      document.getElementById('editData').value = d.data_inventario || '';
+      document.getElementById('editItem').value = d.item || '';
+      document.getElementById('editDescMaterial').value = d.desc_material || '';
+      document.getElementById('editUc').value = d.uc || '';
+      document.getElementById('editLote').value = d.lote || '';
+      document.getElementById('editPeso').value = d.peso || '';
+      document.getElementById('editLocal').value = d.local || '';
+      document.getElementById('editObservacoes').value = d.observacoes || '';
+      document.getElementById('editModal').classList.add('show');
+    }
+
+    function fecharEdicao() {
+      document.getElementById('editModal').classList.remove('show');
+      edicaoIndexAtual = null;
+    }
+
+    async function salvarEdicao() {
+      if (edicaoIndexAtual === null) return;
+      const token = await getGithubToken();
+      if (!token) { toast('Configure o token do GitHub primeiro.', 'error'); abrirConfig(); return; }
+
+      const item = lancamentosCache[edicaoIndexAtual];
+      const dadosNovos = {
+        data_inventario: document.getElementById('editData').value,
+        nome: document.getElementById('editNome').value,
+        matricula: document.getElementById('editMatricula').value,
+        setor: document.getElementById('editSetor').value,
+        produto: item.dados.produto || '',
+        item: document.getElementById('editItem').value,
+        desc_material: document.getElementById('editDescMaterial').value,
+        uc: document.getElementById('editUc').value,
+        lote: document.getElementById('editLote').value,
+        peso: document.getElementById('editPeso').value,
+        local: document.getElementById('editLocal').value,
+        observacoes: document.getElementById('editObservacoes').value
+      };
+
+      setLoad(true, 'Salvando edição...');
+      try {
+        const body = {
+          message: `Edição lançamento: ${dadosNovos.matricula} - ${dadosNovos.item}`,
+          content: base64Utf8(JSON.stringify(dadosNovos, null, 2)),
+          sha: item.sha,
+          branch: GITHUB_BRANCH
+        };
+        const resp = await githubRequest('PUT', item.path, body, token);
+        setLoad(false);
+        if (resp.ok) {
+          item.dados = dadosNovos;
+          item.sha = resp.data?.content?.sha || item.sha;
+          renderListaCards();
+          popularUsuariosExport();
+          toast('Lançamento atualizado!', 'success');
+          fecharEdicao();
+        } else if (resp.status === 409) {
+          toast('Arquivo mudou no GitHub. Recarregue a lista e tente de novo.', 'error', 5000);
+        } else if (resp.status === 401 || resp.status === 403) {
+          toast('Token inválido ou sem permissão.', 'error'); abrirConfig();
+        } else {
+          toast('Erro ao salvar edição.', 'error');
+        }
+      } catch (err) {
+        setLoad(false);
+        toast('Falha ao salvar. Verifique a conexão.', 'error');
+      }
+    }
+
+    // ─── Exportar ───────────────────────────────────────────────────────────────────
+    function popularUsuariosExport() {
+      const sel = document.getElementById('expUsuario');
+      const vistos = new Map();
+      lancamentosCache.forEach(it => {
+        const chave = `${it.dados.matricula || ''}|${it.dados.nome || ''}`;
+        if (!vistos.has(chave)) vistos.set(chave, `${it.dados.nome || '—'} (${it.dados.matricula || '—'})`);
+      });
+      sel.innerHTML = '';
+      vistos.forEach((label, chave) => {
+        const o = document.createElement('option');
+        o.value = chave;
+        o.textContent = label;
+        sel.appendChild(o);
+      });
+    }
+
+    function abrirExportar() {
+      if (!lancamentosCache.length) {
+        toast('Carregue os lançamentos primeiro.', 'error');
+        return;
+      }
+      selecionarFiltroExport('todos');
+      document.getElementById('exportModal').classList.add('show');
+    }
+
+    function fecharExportar() {
+      document.getElementById('exportModal').classList.remove('show');
+    }
+
+    let filtroExportAtual = 'todos';
+
+    function selecionarFiltroExport(valor) {
+      filtroExportAtual = valor;
+      document.querySelectorAll('#filtroOpcoes .filtro-opcao').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.valor === valor);
+      });
+      document.getElementById('expCamposData').style.display = valor === 'data' ? 'block' : 'none';
+      document.getElementById('expCamposUsuario').style.display = valor === 'usuario' ? 'block' : 'none';
+    }
+
+    // ─── Geração do .xlsx (planilha de verdade, com cabeçalho formatado) ──────────
+    let exportPendente = null; // { nomeArquivo, base64 }
+
+    async function gerarExportacao() {
+      const tipo = filtroExportAtual;
+      let itens = lancamentosCache;
+
+      if (tipo === 'data') {
+        const de = document.getElementById('expDataDe').value;
+        const ate = document.getElementById('expDataAte').value;
+        if (!de || !ate) { toast('Informe as duas datas.', 'error'); return; }
+        itens = itens.filter(it => {
+          const dt = it.dados.data_inventario || '';
+          return dt >= de && dt <= ate;
+        });
+      } else if (tipo === 'usuario') {
+        const chave = document.getElementById('expUsuario').value;
+        itens = itens.filter(it => `${it.dados.matricula || ''}|${it.dados.nome || ''}` === chave);
+      }
+
+      if (!itens.length) { toast('Nenhum lançamento encontrado para esse filtro.', 'error'); return; }
+
+      const colunas = ['data_inventario', 'nome', 'matricula', 'setor', 'produto', 'item', 'desc_material', 'uc', 'lote', 'peso', 'local', 'observacoes'];
+      const cabecalho = ['Data', 'Nome', 'Matrícula', 'Setor', 'Tipo', 'Item', 'Descrição', 'UC', 'Lote', 'Peso', 'Local', 'Observações'];
+
+      const TAMANHO_FONTE_PADRAO = 11;
+      const TAMANHO_FONTE_CABECALHO = TAMANHO_FONTE_PADRAO + 2;
+      const bordaFina = {
+        top: { style: 'thin', color: { argb: 'FF888888' } },
+        bottom: { style: 'thin', color: { argb: 'FF888888' } },
+        left: { style: 'thin', color: { argb: 'FF888888' } },
+        right: { style: 'thin', color: { argb: 'FF888888' } }
+      };
+
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Lançamentos', { views: [{ state: 'frozen', ySplit: 1 }] });
+
+      sheet.columns = colunas.map((c, i) => ({ header: cabecalho[i], key: c }));
+      itens.forEach(it => {
+        sheet.addRow(colunas.reduce((obj, c) => { obj[c] = it.dados[c] ?? ''; return obj; }, {}));
+      });
+
+      // Largura de cada coluna, baseada no maior conteúdo (mín. 10, máx. 40)
+      sheet.columns.forEach((col, i) => {
+        let maior = cabecalho[i].length;
+        sheet.eachRow({ includeEmpty: false }, row => {
+          const v = (row.getCell(i + 1).value ?? '').toString();
+          if (v.length > maior) maior = v.length;
+        });
+        col.width = Math.min(Math.max(maior + 2, 10), 40);
+      });
+
+      // Cabeçalho: negrito, fundo verde, fonte maior, bordas em grade
+      const linhaCabecalho = sheet.getRow(1);
+      linhaCabecalho.eachCell(cell => {
+        cell.font = { bold: true, size: TAMANHO_FONTE_CABECALHO, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2E7D32' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = bordaFina;
+      });
+
+      // Bordas + fonte padrão em toda célula de dado que não estiver vazia
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        row.eachCell({ includeEmpty: false }, cell => {
+          if (cell.value === '' || cell.value === null || cell.value === undefined) return;
+          cell.font = { size: TAMANHO_FONTE_PADRAO };
+          cell.border = bordaFina;
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const base64 = arrayBufferParaBase64(buffer);
+      const nomeArquivo = `lancamentos_${tipo}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+      exportPendente = { nomeArquivo, base64, total: itens.length };
+      fecharExportar();
+
+      document.getElementById('exportProntoInfo').textContent =
+        `${itens.length} lançamento(s) prontos em "${nomeArquivo}". O que deseja fazer?`;
+      document.getElementById('exportProntoModal').classList.add('show');
+    }
+
+    function arrayBufferParaBase64(buffer) {
+      let binario = '';
+      const bytes = new Uint8Array(buffer);
+      const tamanhoBloco = 0x8000;
+      for (let i = 0; i < bytes.length; i += tamanhoBloco) {
+        binario += String.fromCharCode.apply(null, bytes.subarray(i, i + tamanhoBloco));
+      }
+      return btoa(binario);
+    }
+
+    function fecharExportPronto() {
+      document.getElementById('exportProntoModal').classList.remove('show');
+      exportPendente = null;
+    }
+
+    // ─── Histórico de exportações (persistido) ─────────────────────────────────────
+    const EXPORTACOES_KEY = 'valgroup_mg10_exportacoes';
+
+    async function getHistoricoExportacoes() {
+      const Prefs = window?.Capacitor?.Plugins?.Preferences;
+      let raw;
+      if (Prefs) { raw = (await Prefs.get({ key: EXPORTACOES_KEY }))?.value; }
+      else { raw = localStorage.getItem(EXPORTACOES_KEY); }
+      try { return raw ? JSON.parse(raw) : []; } catch (e) { return []; }
+    }
+
+    async function adicionarHistoricoExportacao(registro) {
+      const hist = await getHistoricoExportacoes();
+      hist.unshift(registro); // mais recente primeiro
+      await setHistoricoExportacoes(hist);
+    }
+
+    async function setHistoricoExportacoes(hist) {
+      const raw = JSON.stringify(hist);
+      const Prefs = window?.Capacitor?.Plugins?.Preferences;
+      if (Prefs) { await Prefs.set({ key: EXPORTACOES_KEY, value: raw }); }
+      else { localStorage.setItem(EXPORTACOES_KEY, raw); }
+    }
+
+    async function renderExportadosCards() {
+      const cont = document.getElementById('exportadosCards');
+      const info = document.getElementById('exportadosInfo');
+      const hist = await getHistoricoExportacoes();
+
+      if (!hist.length) {
+        cont.innerHTML = '';
+        info.textContent = 'Nenhuma planilha exportada ainda.';
+        return;
+      }
+      info.textContent = '';
+
+      cont.innerHTML = '';
+      hist.forEach((reg, idx) => {
+        const dataFmt = new Date(reg.criadoEm).toLocaleString('pt-BR');
+        const div = document.createElement('div');
+        div.className = 'lc-card';
+        div.innerHTML = `
+          <div class="lc-info">
+            <b>${reg.nomeArquivo}</b><br>
+            <span class="muted">${dataFmt} · ${reg.total} lançamento(s)</span><br>
+            <span class="muted" style="font-size:10.5px;">${reg.caminhoExibicao}</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button type="button" class="lc-edit-btn" onclick="compartilharArquivoExportado(${idx})" title="Compartilhar">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+              </svg>
+            </button>
+            <button type="button" class="lc-edit-btn" style="color:var(--danger);" onclick="confirmarExclusaoExportado(${idx})" title="Excluir">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M3 6h18" />
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6M14 11v6" />
+              </svg>
+            </button>
+          </div>`;
+        cont.appendChild(div);
+      });
+    }
+
+    // Fallback web: Web Share API nível 2 (arquivos) — suportado no Safari
+    // iOS para arquivos desde a versão 15. Passar só `files` no objeto
+    // (misturar com title/text/url é menos confiável no Safari). Retorna
+    // false se não suportado/recusado, pra quem chamou cair no download.
+    async function compartilharBlobWeb(base64, nomeArquivo) {
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const file = new File([blob], nomeArquivo, { type: blob.type });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        return true;
+      }
+      return false;
+    }
+
+    async function compartilharArquivoExportado(idx) {
+      const hist = await getHistoricoExportacoes();
+      const reg = hist[idx];
+      if (!reg) return;
+      try {
+        const Share = window?.Capacitor?.Plugins?.Share;
+        if (Share) {
+          await Share.share({ title: reg.nomeArquivo, url: reg.uri });
+          return;
+        }
+        if (reg.base64 && await compartilharBlobWeb(reg.base64, reg.nomeArquivo)) return;
+        toast('Compartilhamento não disponível neste navegador. Use "Salvar no dispositivo".', 'info');
+      } catch (err) {
+        console.error(err);
+        toast('Falha ao compartilhar.', 'error');
+      }
+    }
+
+    async function confirmarExclusaoExportado(idx) {
+      const hist = await getHistoricoExportacoes();
+      const reg = hist[idx];
+      if (!reg) return;
+      if (!confirm(`Excluir a planilha "${reg.nomeArquivo}"? O arquivo será apagado do dispositivo.`)) return;
+      await excluirArquivoExportado(idx);
+    }
+
+    async function excluirArquivoExportado(idx) {
+      const hist = await getHistoricoExportacoes();
+      const reg = hist[idx];
+      if (!reg) return;
+      try {
+        const Filesystem = window?.Capacitor?.Plugins?.Filesystem;
+        if (Filesystem) {
+          try {
+            await Filesystem.deleteFile({
+              path: `${PASTA_EXPORTACOES}/${reg.nomeArquivo}`,
+              directory: 'DOCUMENTS'
+            });
+          } catch (e) {
+            console.warn('[Export] arquivo já não existia no dispositivo, removendo só do histórico:', e);
+          }
+        }
+        hist.splice(idx, 1);
+        await setHistoricoExportacoes(hist);
+        renderExportadosCards();
+        toast('Planilha excluída.', 'success');
+      } catch (err) {
+        console.error(err);
+        toast('Falha ao excluir a planilha.', 'error');
+      }
+    }
+
+    // Salva na pasta pública de Documentos, dentro de uma subpasta própria
+    // (Documentos/Valgroup_MG10) — não fica solto junto com outros arquivos —
+    // e fica registrado na aba "Exportados" para acesso rápido depois.
+    async function salvarExportNoDispositivo() {
+      if (!exportPendente) return;
+      const { nomeArquivo, base64, total } = exportPendente;
+      const Filesystem = window?.Capacitor?.Plugins?.Filesystem;
+
+      if (!Filesystem) {
+        const bin = atob(base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nomeArquivo;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        await adicionarHistoricoExportacao({
+          nomeArquivo,
+          base64,
+          caminhoExibicao: 'Baixado no navegador',
+          criadoEm: new Date().toISOString(),
+          total
+        });
+        toast('Download iniciado!', 'success');
+        fecharExportPronto();
+        return;
+      }
+
+    // Salva na pasta pública de Documentos, dentro de uma subpasta própria
+      // (Documentos/Valgroup_MG10) — não fica solto junto com outros arquivos.
+      try {
+        try {
+          await Filesystem.mkdir({ path: PASTA_EXPORTACOES, directory: 'DOCUMENTS', recursive: true });
+        } catch (e) { /* pasta já existe, ignora */ }
+
+        const write = await Filesystem.writeFile({
+          path: `${PASTA_EXPORTACOES}/${nomeArquivo}`,
+          data: base64,
+          directory: 'DOCUMENTS'
+        });
+        await adicionarHistoricoExportacao({
+          nomeArquivo,
+          uri: write.uri,
+          caminhoExibicao: `Documentos/${PASTA_EXPORTACOES}/${nomeArquivo}`,
+          criadoEm: new Date().toISOString(),
+          total
+        });
+        toast(`Planilha salva em Documentos/${PASTA_EXPORTACOES}!`, 'success', 5000);
+        fecharExportPronto();
+      } catch (err) {
+        console.error(err);
+        toast('Falha ao salvar a planilha. Verifique a permissão de armazenamento.', 'error', 5000);
+      }
+    }
+
+    // Compartilhar é opcional e só aciona o menu do sistema quando o usuário
+    // explicitamente escolhe essa opção (não acontece automaticamente).
+    async function compartilharExport() {
+      if (!exportPendente) return;
+      const { nomeArquivo, base64 } = exportPendente;
+      try {
+        const Filesystem = window?.Capacitor?.Plugins?.Filesystem;
+        const Share = window?.Capacitor?.Plugins?.Share;
+        if (Filesystem && Share) {
+          const write = await Filesystem.writeFile({
+            path: nomeArquivo,
+            data: base64,
+            directory: 'CACHE'
+          });
+          await Share.share({ title: 'Exportar lançamentos', url: write.uri });
+        } else if (!(await compartilharBlobWeb(base64, nomeArquivo))) {
+          toast('Compartilhamento não disponível neste navegador. Use "Salvar no dispositivo".', 'info', 4000);
+          return;
+        }
+        fecharExportPronto();
+      } catch (err) {
+        console.error(err);
+        toast('Falha ao compartilhar.', 'error');
+      }
+    }
+
+    // ─── Zonas GPS (polígonos do mapeamento oficial) ──────────────────────────────
+    const GPS_ZONES = [
+      {
+        name: 'Galpão das Recicladoras',
+        selectValue: 'Galpão das Recicladoras',
+        polygon: [
+          { lat: -21.81608471625959, lng: -46.64709989784146 },
+          { lat: -21.8156003005899,  lng: -46.64620978551091 },
+          { lat: -21.81520404734714, lng: -46.64645574800207 },
+          { lat: -21.81536434398585, lng: -46.64674319442479 },
+          { lat: -21.81523026963443, lng: -46.64679684232645 },
+          { lat: -21.8155526894303,  lng: -46.64755056489787 },
+          { lat: -21.81574235575567, lng: -46.64746827930198 },
+          { lat: -21.81571994275569, lng: -46.64739936745366 },
+          { lat: -21.81592829549966, lng: -46.64728955275167 },
+          { lat: -21.81588605034086, lng: -46.64721177102592 },
+        ],
+      },
+      {
+        name: 'Galpão 4',
+        selectValue: 'Galpão 4',
+        polygon: [
+          { lat: -21.8150326307119,  lng: -46.64624768846663 },
+          { lat: -21.81529298916337, lng: -46.64610580137072 },
+          { lat: -21.81504961275431, lng: -46.64568833421356 },
+          { lat: -21.81481872520598, lng: -46.64584169801533 },
+        ],
+      },
+      {
+        name: 'Galpão 2',
+        selectValue: 'Galpão 2',
+        polygon: [
+          { lat: -21.81585638237909, lng: -46.64489873464554 },
+          { lat: -21.81569346346334, lng: -46.64499948684169 },
+          { lat: -21.81589553767577, lng: -46.64536501727152 },
+          { lat: -21.81606169415032, lng: -46.64525316765782 },
+        ],
+      },
+      {
+        name: 'Pátio frente Vestiário',
+        selectValue: 'Pátio frente Vestiário',
+        polygon: [
+          { lat: -21.81683184687173, lng: -46.64676636983064 },
+          { lat: -21.81665161277153, lng: -46.64642050964317 },
+          { lat: -21.81634053885024, lng: -46.64662603754458 },
+          { lat: -21.81642114963867, lng: -46.64678415923118 },
+          { lat: -21.81618005077441, lng: -46.64695033246661 },
+          { lat: -21.81626689111275, lng: -46.64711415594035 },
+        ],
+      },
+      {
+        name: 'Galpão das Resinas',
+        selectValue: 'Galpão das Resinas',
+        polygon: [
+          { lat: -21.81636229438322, lng: -46.64552871708128 },
+          { lat: -21.81618007152735, lng: -46.64520095855654 },
+          { lat: -21.81548569137446, lng: -46.64564004871566 },
+          { lat: -21.81566538152898, lng: -46.64595792945938 },
+        ],
+      },
+      {
+        name: 'Pátio norte',
+        selectValue: 'Pátio norte',
+        polygon: [
+          { lat: -21.81610228003359, lng: -46.64769153623034 },
+          { lat: -21.81589902549778, lng: -46.64731190772441 },
+          { lat: -21.81574194257675, lng: -46.64740247461851 },
+          { lat: -21.81577535443386, lng: -46.64747089261386 },
+          { lat: -21.81557041464745, lng: -46.64757822178976 },
+          { lat: -21.81577185418131, lng: -46.6479338846581  },
+        ],
+      },
+      {
+        name: 'Pátio Sul',
+        selectValue: 'Pátio Sul',
+        polygon: [
+          { lat: -21.81638025736872, lng: -46.64715771212524 },
+          { lat: -21.81611012331138, lng: -46.64738142210484 },
+          { lat: -21.81632989421555, lng: -46.64780008674373 },
+          { lat: -21.81659629597318, lng: -46.64760513736778 },
+        ],
+      },
+      {
+        name: 'Galpão 3 Rios',
+        selectValue: 'Galpão 3 Rios',
+        polygon: [
+          { lat: -21.81589100107155, lng: -46.64456251214067 },
+          { lat: -21.81576549186959, lng: -46.64429891253403 },
+          { lat: -21.81512801884736, lng: -46.644689205447   },
+          { lat: -21.81527102785346, lng: -46.64494092333958 },
+        ],
+      },
+      {
+        name: 'Frente Almoxarifado',
+        selectValue: 'Frente Almoxarifado',
+        polygon: [
+          { lat: -21.8154953405955,  lng: -46.64566183968942 },
+          { lat: -21.81528166699345, lng: -46.64580187740324 },
+          { lat: -21.81536532428871, lng: -46.64595688767558 },
+          { lat: -21.81558841695643, lng: -46.64582147233186 },
+        ],
+      },
+      {
+        name: 'Frente ao G4',
+        selectValue: 'Frente ao G4',
+        polygon: [
+          { lat: -21.81514722686952, lng: -46.64655440931215 },
+          { lat: -21.81520929073505, lng: -46.64651460078188 },
+          { lat: -21.81516925473763, lng: -46.64643941215407 },
+          { lat: -21.81544150558213, lng: -46.6462791201809  },
+          { lat: -21.8153481834016,  lng: -46.64610055001909 },
+          { lat: -21.81501810371741, lng: -46.64629299796399 },
+        ],
+      },
+      {
+        name: 'Quarentena Subprodutos',
+        selectValue: 'Quarentena Subprodutos',
+        polygon: [
+          { lat: -21.81582968909465, lng: -46.64602430155602 },
+          { lat: -21.81579698764714, lng: -46.64595690992036 },
+          { lat: -21.8156418636384,  lng: -46.64606343800148 },
+          { lat: -21.81584129861219, lng: -46.6464253955239  },
+          { lat: -21.81587446497869, lng: -46.64639822527261 },
+          { lat: -21.81571307366681, lng: -46.64610254330634 },
+        ],
+      },
+      {
+        name: 'Atrás Dupet',
+        selectValue: 'Atrás Dupet',
+        polygon: [
+          { lat: -21.81587789304195, lng: -46.64641367365558 },
+          { lat: -21.81592446279814, lng: -46.64648539965307 },
+          { lat: -21.81609395739906, lng: -46.64636330137631 },
+          { lat: -21.81604076400573, lng: -46.64628375217401 },
+        ],
+      },
+      {
+        name: 'Galpão SSP',
+        selectValue: 'Galpão SSP',
+        polygon: [
+          { lat: -21.81596415005697, lng: -46.64371293271365 },
+          { lat: -21.81583206106763, lng: -46.64379750596949 },
+          { lat: -21.8159573197123,  lng: -46.64404687304567 },
+          { lat: -21.81612830942915, lng: -46.64393222945242 },
+          { lat: -21.81606862366289, lng: -46.64381380474205 },
+          { lat: -21.81602979649475, lng: -46.64384047191493 },
+        ],
+      },
+    ];
+
+    // ─── Ray-casting ──────────────────────────────────────────────────────────────
+    function pontoNaZona(ponto, poligono) {
+      const { lat: px, lng: py } = ponto;
+      let dentro = false;
+      const n = poligono.length;
+      for (let i = 0, j = n - 1; i < n; j = i++) {
+        const xi = poligono[i].lat, yi = poligono[i].lng;
+        const xj = poligono[j].lat, yj = poligono[j].lng;
+        const cruza = (yi > py) !== (yj > py) &&
+          px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
+        if (cruza) dentro = !dentro;
+      }
+      return dentro;
+    }
+
+    // ─── MELHORIA 1: Expansão do polígono com buffer em metros ───────────────────
+    function expandirPoligono(poligono, metrosBuffer = 8) {
+      const cx = poligono.reduce((s, p) => s + p.lat, 0) / poligono.length;
+      const cy = poligono.reduce((s, p) => s + p.lng, 0) / poligono.length;
+      const dLat = metrosBuffer / 111320;
+      const dLng = metrosBuffer / (111320 * Math.cos(cx * Math.PI / 180));
+      return poligono.map(p => ({
+        lat: p.lat + (p.lat > cx ? dLat : -dLat),
+        lng: p.lng + (p.lng > cy ? dLng : -dLng)
+      }));
+    }
+
+    // ─── MELHORIA 2: Distância ao centróide para fallback ─────────────────────────
+    function distanciaAoCentroide(ponto, poligono) {
+      const cx = poligono.reduce((s, p) => s + p.lat, 0) / poligono.length;
+      const cy = poligono.reduce((s, p) => s + p.lng, 0) / poligono.length;
+      const dLat = (ponto.lat - cx) * 111320;
+      const dLng = (ponto.lng - cy) * 111320 * Math.cos(cx * Math.PI / 180);
+      return Math.sqrt(dLat ** 2 + dLng ** 2);
+    }
+
+    // ─── MELHORIA 3: Cache da última posição válida (persistido no dispositivo) ──
+    let _ultimaPosicaoValida = null;
+    const GPS_CACHE_KEY = 'valgroup_mg10_gps_cache';
+
+    async function salvarCachePosicao(ponto) {
+      _ultimaPosicaoValida = ponto;
+      const raw = JSON.stringify(ponto);
+      const Prefs = window?.Capacitor?.Plugins?.Preferences;
+      if (Prefs) { await Prefs.set({ key: GPS_CACHE_KEY, value: raw }); }
+      else { localStorage.setItem(GPS_CACHE_KEY, raw); }
+    }
+
+    async function carregarCachePosicao() {
+      const Prefs = window?.Capacitor?.Plugins?.Preferences;
+      let raw;
+      if (Prefs) { raw = (await Prefs.get({ key: GPS_CACHE_KEY }))?.value; }
+      else { raw = localStorage.getItem(GPS_CACHE_KEY); }
+      try { _ultimaPosicaoValida = raw ? JSON.parse(raw) : null; } catch (e) { _ultimaPosicaoValida = null; }
+    }
+
+    // ─── Utilitários estatísticos (mediana / distância entre pontos) ──────────────
+    function mediana(arr) {
+      const s = [...arr].sort((a, b) => a - b);
+      const meio = Math.floor(s.length / 2);
+      return s.length % 2 ? s[meio] : (s[meio - 1] + s[meio]) / 2;
+    }
+
+    function distanciaEntreDoisPontos(a, b) {
+      const dLat = (b.lat - a.lat) * 111320;
+      const dLng = (b.lng - a.lng) * 111320 * Math.cos(a.lat * Math.PI / 180);
+      return Math.sqrt(dLat ** 2 + dLng ** 2);
+    }
+
+    // ─── MELHORIA 4: Múltiplas leituras GPS com descarte de outlier e média
+    // ponderada pela precisão de cada leitura ──────────────────────────────────
+    async function getPosicaoMedia(Geo, tentativas = 5) {
+      const leituras = [];
+      for (let i = 0; i < tentativas; i++) {
+        try {
+          const pos = await Geo.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000 });
+          leituras.push({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            acc: pos.coords.accuracy
+          });
+          if (i < tentativas - 1) await new Promise(r => setTimeout(r, 600));
+        } catch (e) {
+          console.warn(`[GPS] leitura ${i + 1} falhou:`, e.message);
+        }
+      }
+
+      if (!leituras.length) throw new Error('Nenhuma leitura GPS obtida');
+
+      // Descarta leituras com precisão muito ruim (> 40m)
+      let base = leituras.filter(p => p.acc <= 40);
+      if (!base.length) base = leituras;
+
+      // Descarta a leitura mais distante da mediana (outlier), se houver
+      // leituras suficientes pra isso não distorcer o resultado
+      if (base.length >= 4) {
+        const medLat = mediana(base.map(p => p.lat));
+        const medLng = mediana(base.map(p => p.lng));
+        const comDist = base
+          .map(p => ({ ...p, dist: distanciaEntreDoisPontos({ lat: medLat, lng: medLng }, p) }))
+          .sort((a, b) => a.dist - b.dist);
+        const outlier = comDist[comDist.length - 1];
+        base = comDist.slice(0, -1);
+        console.log(`[GPS] outlier descartado a ${Math.round(outlier.dist)}m da mediana`);
+      }
+
+      // Média ponderada: leituras mais precisas (menor acc) pesam mais
+      const pesos = base.map(p => 1 / Math.max(p.acc, 1) ** 2);
+      const pesoTotal = pesos.reduce((s, w) => s + w, 0);
+      const lat = base.reduce((s, p, i) => s + p.lat * pesos[i], 0) / pesoTotal;
+      const lng = base.reduce((s, p, i) => s + p.lng * pesos[i], 0) / pesoTotal;
+
+      console.log(`[GPS] ${leituras.length} leituras, ${base.length} usadas na média ponderada`);
+
+      return {
+        lat, lng,
+        accuracy: Math.min(...base.map(p => p.acc))
+      };
+    }
+
+    // ─── detectarLocalGPS (com todas as melhorias) ────────────────────────────────
+    // Guarda o último local que já gerou uma notificação, pra não repetir a
+    // mesma notificação em toda busca automática (só avisa se mudar de fato).
+    let ultimoLocalNotificado = null;
+
+    // Fallback web: navigator.geolocation tem o mesmo formato de retorno
+    // (pos.coords.{latitude,longitude,accuracy}) que o plugin nativo, só que
+    // baseado em callback — este shim só embrulha isso numa Promise.
+    const GeoWeb = {
+      getCurrentPosition: (opts) => new Promise((resolve, reject) => {
+        if (!navigator.geolocation) { reject(new Error('Geolocalização não suportada neste navegador')); return; }
+        navigator.geolocation.getCurrentPosition(resolve, reject, opts);
+      }),
+      requestPermissions: async () => { /* o navegador pede permissão sozinho no getCurrentPosition */ }
+    };
+
+    async function detectarLocalGPS() {
+      const btn = document.getElementById('btnGps');
+      const btnTxt = document.getElementById('gpsBtnTxt');
+      const accEl = document.getElementById('gpsAccuracy');
+      const localEl = document.getElementById('local');
+
+      btn.disabled = true;
+      btn.style.borderColor = 'var(--accent)';
+      btn.style.color = 'var(--accent)';
+      btnTxt.textContent = 'Buscando...';
+
+      try {
+        const Geo = window?.Capacitor?.Plugins?.Geolocation ?? GeoWeb;
+
+        try { await Geo.requestPermissions(); } catch (e) { /* permissão já concedida */ }
+
+        // Melhoria 4: média ponderada de 5 leituras, com descarte de outlier
+        const { lat, lng, accuracy } = await getPosicaoMedia(Geo, 5);
+        const ponto = { lat, lng };
+        const accuracyArredondada = Math.round(accuracy);
+
+        console.log('[GPS] posição média:', JSON.stringify(ponto), '| precisão:', accuracyArredondada + 'm');
+
+        // Melhoria 5: buffer do polígono adapta ao tamanho da incerteza do GPS
+        // (aproxima o "círculo de incerteza" da leitura, não só o ponto central)
+        const bufferAdaptativo = Math.min(Math.max(accuracyArredondada, 8), 20);
+
+        // Melhoria 1: testa com polígono expandido (buffer adaptativo)
+        let zonaDetectada = null;
+        for (const z of GPS_ZONES) {
+          const poligonoExpandido = expandirPoligono(z.polygon, bufferAdaptativo);
+          if (pontoNaZona(ponto, poligonoExpandido)) {
+            zonaDetectada = z;
+            break;
+          }
+        }
+
+        // Melhoria 2: fallback por zona mais próxima (até 15m do centróide)
+        let usouFallback = false;
+        if (!zonaDetectada) {
+          const comDist = GPS_ZONES.map(z => ({ z, dist: distanciaAoCentroide(ponto, z.polygon) }));
+          comDist.sort((a, b) => a.dist - b.dist);
+          if (comDist[0].dist <= 15) {
+            zonaDetectada = comDist[0].z;
+            usouFallback = true;
+            console.log(`[GPS] fallback por distância: ${zonaDetectada.name} (${Math.round(comDist[0].dist)}m)`);
+          }
+        }
+
+        const nomeZona = zonaDetectada ? zonaDetectada.name : 'Outros locais';
+        const valorSel = zonaDetectada ? zonaDetectada.selectValue : 'Outros locais';
+
+        document.getElementById('local').value = valorSel;
+        highlightField('local');
+
+        // Melhoria 3: salva cache (persistido) se a leitura for confiável
+        if (accuracyArredondada <= 25) {
+          await salvarCachePosicao(ponto);
+          console.log('[GPS] posição salva no cache');
+        }
+
+        // NOVO: trava seleção manual por padrão
+        localEl.disabled = true;
+
+        // libera apenas se GPS estiver com baixa precisão
+        // (mesma lógica do texto vermelho)
+        if (accuracyArredondada > 25) {
+          localEl.disabled = false;
+        }
+
+        accEl.style.display = 'block';
+        accEl.style.color = accuracyArredondada <= 10
+          ? 'var(--success)'
+          : accuracyArredondada <= 25
+            ? 'var(--accent2)'
+            : 'var(--danger)';
+        accEl.textContent = `📍 Precisão: ±${accuracyArredondada}m — detectado: ${nomeZona}`;
+
+        // Só notifica (toast) se o local detectado for DIFERENTE do último
+        // avisado — evita ficar repetindo a mesma notificação a cada busca
+        // automática (1 em 1 minuto) quando a pessoa não se moveu de zona.
+        if (valorSel !== ultimoLocalNotificado) {
+          if (usouFallback) {
+            toast(`GPS impreciso — zona mais próxima: ${nomeZona} (±${accuracyArredondada}m)`, 'info', 5000);
+          } else if (accuracyArredondada > 25) {
+            toast(`GPS com baixa precisão (±${accuracyArredondada}m). Confirme o local manualmente.`, 'info', 5000);
+          } else {
+            toast(`Local detectado: ${nomeZona} (±${accuracyArredondada}m)`, 'success', 4000);
+          }
+          ultimoLocalNotificado = valorSel;
+        }
+
+      } catch (err) {
+        console.error('[GPS]', err);
+
+        // Melhoria 3: tenta usar cache em caso de falha
+        if (_ultimaPosicaoValida) {
+          console.log('[GPS] usando última posição em cache');
+
+          let zonaCache = null;
+          for (const z of GPS_ZONES) {
+            const poligonoExpandido = expandirPoligono(z.polygon, 8);
+            if (pontoNaZona(_ultimaPosicaoValida, poligonoExpandido)) { zonaCache = z; break; }
+          }
+
+          const nomeCache = zonaCache ? zonaCache.name : 'Outros locais';
+          document.getElementById('local').value = zonaCache ? zonaCache.selectValue : 'Outros locais';
+          highlightField('local');
+          localEl.disabled = true;
+
+          accEl.style.display = 'block';
+          accEl.style.color = 'var(--muted)';
+          accEl.textContent = `📍 Última posição conhecida — ${nomeCache}`;
+          toast('GPS falhou. Usando última posição conhecida.', 'info', 4000);
+
+        } else {
+          localEl.disabled = false;
+          accEl.style.display = 'block';
+          accEl.style.color = 'var(--danger)';
+          accEl.textContent = 'GPS indisponível — selecione manualmente';
+
+          const msg = err?.message?.toLowerCase() ?? '';
+          if (msg.includes('denied') || msg.includes('permission')) {
+            toast('Permissão de localização negada. Habilite nas configurações.', 'error', 5000);
+          } else {
+            toast('GPS não disponível. Selecione o local manualmente.', 'info', 4000);
+          }
+        }
+      } finally {
+        btn.disabled = false;
+        btn.style.borderColor = 'var(--accent)';
+        btn.style.color = 'var(--muted)';
+        btnTxt.textContent = 'Atualizar';
+      }
+    }
+  </script>
+</body>
+
+</html>
