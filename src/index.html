@@ -1374,12 +1374,15 @@
             // o console no celular) — mostra o que o OCR conseguiu ler.
             // alert() (não toast) porque o toast seguinte de aplicarCamposIA
             // sobrescreveria esse texto antes de dar tempo de ler.
-            alert('OCR leu:\n\n' + texto.trim());
+            alert(`OCR (${_ultimaFonteOCR}) leu:\n\n` + texto.trim());
           }
           const dados = parsearEtiqueta(texto);
           aplicarCamposIA(dados);
         } else {
           console.warn('[OCR] falhou:', resultadoOCR.reason?.message ?? 'sem resultado');
+          if (!window.Capacitor) {
+            alert(`OCR (${_ultimaFonteOCR}) falhou:\n\n` + (resultadoOCR.reason?.message ?? resultadoOCR.reason ?? 'sem resultado'));
+          }
           toast('OCR não identificou texto. Melhore a iluminação e tente novamente.', 'info', 5000);
         }
 
@@ -1442,6 +1445,10 @@
 }
 
     // ─── OCR via CapacitorOcr ─────────────────────────────────────────────────────
+    // Debug: qual fonte respondeu a última leitura de OCR (mostrado no alerta
+    // de debug em fotografarEtiqueta, só no navegador).
+    let _ultimaFonteOCR = '?';
+
     async function rodarOCR(foto, base64, canvasOcr, base64Colorido) {
       const OCR = window?.Capacitor?.Plugins?.CapacitorOcr;
       if (!OCR) {
@@ -1450,13 +1457,19 @@
         // Lens/MLKit), sem precisar de rotação manual. Cai pro leitor local
         // (offline) se não tiver chave, não tiver internet, ou a API falhar.
         const visionKey = await getVisionApiKey();
+        console.log('[OCR] chave do Cloud Vision configurada?', !!visionKey, visionKey ? `(começa com "${visionKey.slice(0, 6)}...")` : '');
         if (visionKey) {
           try {
-            return await rodarOCRCloudVision(base64Colorido ?? base64, visionKey);
+            const texto = await rodarOCRCloudVision(base64Colorido ?? base64, visionKey);
+            _ultimaFonteOCR = 'Cloud Vision';
+            return texto;
           } catch (e) {
             console.warn('[OCR] Cloud Vision falhou, usando leitor local:', e.message);
+            _ultimaFonteOCR = `Tesseract local (Cloud Vision falhou: ${e.message})`;
+            return rodarOCRWeb(canvasOcr);
           }
         }
+        _ultimaFonteOCR = 'Tesseract local (sem chave configurada)';
         return rodarOCRWeb(canvasOcr);
       }
 
