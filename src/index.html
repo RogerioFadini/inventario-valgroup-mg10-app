@@ -564,14 +564,6 @@
         <label>Token (Personal Access Token)</label>
         <input type="password" id="cfgToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
       </div>
-      <div class="field" style="margin-bottom:14px;">
-        <label>Chave da API Google Cloud Vision (opcional)</label>
-        <input type="password" id="cfgVisionKey" placeholder="AIza..." autocomplete="off">
-        <p style="color:var(--muted);font-size:11.5px;line-height:1.4;margin-top:6px;">
-          Melhora bastante a leitura de foto de etiqueta no navegador (funciona em qualquer ângulo, ao contrário do
-          leitor local). Precisa de internet. Sem chave configurada, o app usa o leitor local (offline) normalmente.
-        </p>
-      </div>
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn-sub" style="margin-top:0;" onclick="salvarConfig()">Salvar</button>
         <button type="button" id="btnCancelarConfig" onclick="fecharConfig()"
@@ -1047,47 +1039,10 @@
       }
     }
 
-    // ─── Chave da API Google Cloud Vision (opcional, salva localmente) ────────────
-    const VISION_KEY_KEY = 'valgroup_mg10_vision_key';
-
-    // Injetada automaticamente no deploy pelo GitHub Actions (substitui esse
-    // placeholder pelo valor do secret VISION_API_KEY do repositório — ver
-    // .github/workflows/deploy-pages.yml). Assim ninguém precisa digitar a
-    // chave manualmente em cada celular. Continua nunca aparecendo no
-    // código-fonte do repositório, só no site já publicado.
-    const VISION_API_KEY_EMBUTIDA = '__VISION_API_KEY__';
-
-    async function getVisionApiKey() {
-      // Campo manual em Configurações tem prioridade (permite testar com
-      // outra chave num dispositivo específico, se precisar).
-      const Prefs = window?.Capacitor?.Plugins?.Preferences;
-      let manual;
-      if (Prefs) {
-        try { manual = (await Prefs.get({ key: VISION_KEY_KEY }))?.value; } catch (e) { manual = null; }
-      } else {
-        manual = localStorage.getItem(VISION_KEY_KEY);
-      }
-      if (manual) return manual;
-
-      // Placeholder não substituído (rodando local, fora do deploy) = sem chave embutida.
-      if (VISION_API_KEY_EMBUTIDA && !VISION_API_KEY_EMBUTIDA.startsWith('__')) return VISION_API_KEY_EMBUTIDA;
-      return null;
-    }
-
-    async function setVisionApiKey(key) {
-      const Prefs = window?.Capacitor?.Plugins?.Preferences;
-      if (Prefs) {
-        await Prefs.set({ key: VISION_KEY_KEY, value: key });
-      } else {
-        localStorage.setItem(VISION_KEY_KEY, key);
-      }
-    }
-
     function abrirConfig() {
       document.getElementById('configModal').classList.add('show');
       document.getElementById('btnCancelarConfig').style.display = 'block';
       getGithubToken().then(tok => { document.getElementById('cfgToken').value = tok || ''; });
-      getVisionApiKey().then(key => { document.getElementById('cfgVisionKey').value = key || ''; });
     }
 
     function fecharConfig() {
@@ -1098,8 +1053,7 @@
       const token = document.getElementById('cfgToken').value.trim();
       if (!token) { toast('Informe o token.', 'error'); return; }
       await setGithubToken(token);
-      await setVisionApiKey(document.getElementById('cfgVisionKey').value.trim());
-      toast('Configurações salvas neste dispositivo.', 'success');
+      toast('Token salvo neste dispositivo.', 'success');
       fecharConfig();
     }
 
@@ -1348,7 +1302,7 @@
         setAiStatus(true, 'Lendo QR Code e texto da etiqueta...');
 
         const [resultadoOCR, resultadoQR] = await Promise.allSettled([
-          rodarOCR(foto, base64, canvasOcr, base64Barcode),
+          rodarOCR(foto, base64, canvasOcr),
           rodarBarcode(foto, base64Barcode)
         ]);
 
@@ -1449,30 +1403,14 @@
     // de debug em fotografarEtiqueta, só no navegador).
     let _ultimaFonteOCR = '?';
 
-    async function rodarOCR(foto, base64, canvasOcr, base64Colorido) {
+    async function rodarOCR(foto, base64, canvasOcr) {
       const OCR = window?.Capacitor?.Plugins?.CapacitorOcr;
       if (!OCR) {
-        // Se houver chave do Cloud Vision configurada, tenta primeiro — ele
-        // lê texto em qualquer orientação de fábrica (mesma tecnologia do
-        // Lens/MLKit), sem precisar de rotação manual. Cai pro leitor local
-        // (offline) se não tiver chave, não tiver internet, ou a API falhar.
-        const visionKey = await getVisionApiKey();
-        console.log('[OCR] chave do Cloud Vision configurada?', !!visionKey, visionKey ? `(começa com "${visionKey.slice(0, 6)}...")` : '');
-        if (visionKey) {
-          try {
-            const texto = await rodarOCRCloudVision(base64Colorido ?? base64, visionKey);
-            _ultimaFonteOCR = 'Cloud Vision';
-            return texto;
-          } catch (e) {
-            console.warn('[OCR] Cloud Vision falhou, usando leitor local:', e.message);
-            _ultimaFonteOCR = `Tesseract local (Cloud Vision falhou: ${e.message})`;
-            return rodarOCRWeb(canvasOcr);
-          }
-        }
-        _ultimaFonteOCR = 'Tesseract local (sem chave configurada)';
+        _ultimaFonteOCR = 'Tesseract local';
         return rodarOCRWeb(canvasOcr);
       }
 
+      _ultimaFonteOCR = 'MLKit (nativo)';
       const tentativas = [
         { base64: base64 },
         { base64String: base64 },
@@ -1520,34 +1458,6 @@
         cacheMethod: 'none' // nunca lê/grava no IndexedDB, sempre usa o arquivo local
       });
       return _tesseractWorker;
-    }
-
-    // ─── OCR via Google Cloud Vision API (mesma tecnologia do Lens/MLKit) ─────────
-    // DOCUMENT_TEXT_DETECTION lida com texto em qualquer orientação nativamente
-    // (não precisa de rotação manual, ao contrário do Tesseract local). Exige
-    // internet e uma chave de API configurada em "Configurar acesso" — o
-    // usuário decide se quer usar (é opcional, ver rodarOCR).
-    async function rodarOCRCloudVision(base64, apiKey) {
-      const resp = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requests: [{
-            image: { content: base64 },
-            features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
-            imageContext: { languageHints: ['pt'] }
-          }]
-        })
-      });
-
-      if (!resp.ok) throw new Error(`Cloud Vision: HTTP ${resp.status}`);
-      const data = await resp.json();
-      const resultado = data?.responses?.[0];
-      if (resultado?.error) throw new Error(`Cloud Vision: ${resultado.error.message}`);
-
-      const texto = resultado?.fullTextAnnotation?.text ?? '';
-      if (!texto.trim()) throw new Error('Cloud Vision: nenhum texto detectado');
-      return texto;
     }
 
     async function rodarOCRWeb(canvasOcr) {
