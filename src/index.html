@@ -564,14 +564,6 @@
         <label>Token (Personal Access Token)</label>
         <input type="password" id="cfgToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
       </div>
-      <div class="field" style="margin-bottom:14px;">
-        <label>Chave da API Google Cloud Vision (opcional)</label>
-        <input type="password" id="cfgVisionKey" placeholder="AIza..." autocomplete="off">
-        <p style="color:var(--muted);font-size:11.5px;line-height:1.4;margin-top:6px;">
-          Melhora bastante a leitura de foto de etiqueta no navegador (funciona em qualquer ângulo, ao contrário do
-          leitor local). Precisa de internet. Sem chave configurada, o app usa o leitor local (offline) normalmente.
-        </p>
-      </div>
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn-sub" style="margin-top:0;" onclick="salvarConfig()">Salvar</button>
         <button type="button" id="btnCancelarConfig" onclick="fecharConfig()"
@@ -1047,47 +1039,22 @@
       }
     }
 
-    // ─── Chave da API Google Cloud Vision (opcional, salva localmente) ────────────
-    const VISION_KEY_KEY = 'valgroup_mg10_vision_key';
-
     // Injetada automaticamente no deploy pelo GitHub Actions (substitui esse
     // placeholder pelo valor do secret VISION_API_KEY do repositório — ver
-    // .github/workflows/deploy-pages.yml). Assim ninguém precisa digitar a
-    // chave manualmente em cada celular. Continua nunca aparecendo no
-    // código-fonte do repositório, só no site já publicado.
+    // .github/workflows/deploy-pages.yml). Nunca aparece no código-fonte do
+    // repositório, só no site já publicado.
     const VISION_API_KEY_EMBUTIDA = '__VISION_API_KEY__';
 
-    async function getVisionApiKey() {
-      // Campo manual em Configurações tem prioridade (permite testar com
-      // outra chave num dispositivo específico, se precisar).
-      const Prefs = window?.Capacitor?.Plugins?.Preferences;
-      let manual;
-      if (Prefs) {
-        try { manual = (await Prefs.get({ key: VISION_KEY_KEY }))?.value; } catch (e) { manual = null; }
-      } else {
-        manual = localStorage.getItem(VISION_KEY_KEY);
-      }
-      if (manual) return manual;
-
+    function getVisionApiKey() {
       // Placeholder não substituído (rodando local, fora do deploy) = sem chave embutida.
       if (VISION_API_KEY_EMBUTIDA && !VISION_API_KEY_EMBUTIDA.startsWith('__')) return VISION_API_KEY_EMBUTIDA;
       return null;
-    }
-
-    async function setVisionApiKey(key) {
-      const Prefs = window?.Capacitor?.Plugins?.Preferences;
-      if (Prefs) {
-        await Prefs.set({ key: VISION_KEY_KEY, value: key });
-      } else {
-        localStorage.setItem(VISION_KEY_KEY, key);
-      }
     }
 
     function abrirConfig() {
       document.getElementById('configModal').classList.add('show');
       document.getElementById('btnCancelarConfig').style.display = 'block';
       getGithubToken().then(tok => { document.getElementById('cfgToken').value = tok || ''; });
-      getVisionApiKey().then(key => { document.getElementById('cfgVisionKey').value = key || ''; });
     }
 
     function fecharConfig() {
@@ -1098,8 +1065,7 @@
       const token = document.getElementById('cfgToken').value.trim();
       if (!token) { toast('Informe o token.', 'error'); return; }
       await setGithubToken(token);
-      await setVisionApiKey(document.getElementById('cfgVisionKey').value.trim());
-      toast('Configurações salvas neste dispositivo.', 'success');
+      toast('Token salvo neste dispositivo.', 'success');
       fecharConfig();
     }
 
@@ -1338,20 +1304,10 @@
         if (resultadoOCR.status === 'fulfilled' && resultadoOCR.value) {
           const texto = resultadoOCR.value;
           console.log('[OCR] texto:\n', texto);
-          if (!window.Capacitor) {
-            // Debug visível no navegador (sem plugin nativo não tem como ver
-            // o console no celular) — mostra o que o OCR conseguiu ler.
-            // alert() (não toast) porque o toast seguinte de aplicarCamposIA
-            // sobrescreveria esse texto antes de dar tempo de ler.
-            alert(`OCR (${_ultimaFonteOCR}) leu:\n\n` + texto.trim());
-          }
           const dados = parsearEtiqueta(texto);
           aplicarCamposIA(dados);
         } else {
           console.warn('[OCR] falhou:', resultadoOCR.reason?.message ?? 'sem resultado');
-          if (!window.Capacitor) {
-            alert(`OCR (${_ultimaFonteOCR}) falhou:\n\n` + (resultadoOCR.reason?.message ?? resultadoOCR.reason ?? 'sem resultado'));
-          }
           toast('OCR não identificou texto. Melhore a iluminação e tente novamente.', 'info', 5000);
         }
 
@@ -1425,7 +1381,6 @@
         // tiver chave configurada ou a API falhar, o OCR simplesmente não
         // preenche nada (o usuário digita manualmente).
         const visionKey = await getVisionApiKey();
-        console.log('[OCR] chave do Cloud Vision configurada?', !!visionKey, visionKey ? `(começa com "${visionKey.slice(0, 6)}...")` : '');
         if (!visionKey) throw new Error('Cloud Vision: nenhuma chave configurada');
         _ultimaFonteOCR = 'Cloud Vision';
         return rodarOCRCloudVision(base64Colorido ?? base64, visionKey);
