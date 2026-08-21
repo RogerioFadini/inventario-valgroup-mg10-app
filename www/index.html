@@ -1265,7 +1265,7 @@
     async function fotografarEtiqueta() {
       try {
         const Camera = window?.Capacitor?.Plugins?.Camera;
-        let foto, base64, base64Barcode, canvasOcr = null;
+        let foto, base64, base64Barcode, canvasOcr = null, canvasBarcode = null;
 
         if (Camera) {
           foto = await Camera.getPhoto({
@@ -1293,6 +1293,7 @@
           // recebe, além disso, escala de cinza + contraste — ver
           // _prepararCanvasParaOCR).
           const canvasBase = await _imageFileParaCanvas(file, 2000);
+          canvasBarcode = canvasBase;
           canvasOcr = _prepararCanvasParaOCR(canvasBase);
           base64Barcode = _canvasParaBase64(canvasBase);
           base64 = _canvasParaBase64(canvasOcr, 0.95);
@@ -1303,7 +1304,7 @@
 
         const [resultadoOCR, resultadoQR] = await Promise.allSettled([
           rodarOCR(foto, base64, canvasOcr),
-          rodarBarcode(foto, base64Barcode)
+          rodarBarcode(foto, base64Barcode, canvasBarcode)
         ]);
 
         setAiStatus(false);
@@ -1444,72 +1445,92 @@
     // Vendorizado localmente em vendor/tesseract/ (não CDN em runtime) pra
     // funcionar mesmo com sinal fraco no galpão, uma vez cacheado pelo SW.
     // Carregado sob demanda (lazy) no primeiro uso, não no boot da página.
-    let _tesseractWorker = null;
-    async function _getTesseractWorker() {
-      if (_tesseractWorker) return _tesseractWorker;
-      await carregarScript('vendor/tesseract/tesseract.min.js');
-      const base = new URL('vendor/tesseract/', document.baseURI).href;
-      _tesseractWorker = await Tesseract.createWorker('por', 1, {
-        workerPath: base + 'worker.min.js',
-        corePath: base,     // diretório: a lib escolhe sozinha entre a variante
-                             // SIMD e a variante padrão, conforme suporte do device
-        langPath: base,     // busca base + 'por.traineddata.gz'
-        gzip: true,
-        cacheMethod: 'none' // nunca lê/grava no IndexedDB, sempre usa o arquivo local
-      });
-      return _tesseractWorker;
+    //
+    // Usa um POOL de workers (não só 1), pra rodar várias rotações candidatas
+    // ao mesmo tempo em vez de uma de cada vez — corta bastante o tempo de
+    // espera em fotos tortas, sem abrir mão de nenhuma tentativa.
+    const TESSERACT_POOL_SIZE = 3;
+    let _tesseractPoolPromise = null;
+
+    async function _getTesseractPool() {
+      if (_tesseractPoolPromise) return _tesseractPoolPromise;
+      _tesseractPoolPromise = (async () => {
+        await carregarScript('vendor/tesseract/tesseract.min.js');
+        const base = new URL('vendor/tesseract/', document.baseURI).href;
+        const opcoes = {
+          workerPath: base + 'worker.min.js',
+          corePath: base,     // diretório: a lib escolhe sozinha entre a variante
+                               // SIMD e a variante padrão, conforme suporte do device
+          langPath: base,     // busca base + 'por.traineddata.gz'
+          gzip: true,
+          cacheMethod: 'none' // nunca lê/grava no IndexedDB, sempre usa o arquivo local
+        };
+        const workers = [];
+        for (let i = 0; i < TESSERACT_POOL_SIZE; i++) {
+          workers.push(await Tesseract.createWorker('por', 1, opcoes));
+        }
+        return workers;
+      })().catch(err => { _tesseractPoolPromise = null; throw err; });
+      return _tesseractPoolPromise;
     }
 
     async function rodarOCRWeb(canvasOcr) {
-      const worker = await _getTesseractWorker();
+      const pool = await _getTesseractPool();
 
       // Usa a confiança que o próprio Tesseract calcula pra cada leitura
       // (0-100, baseada no modelo de reconhecimento) — muito mais confiável
       // do que tentar adivinhar pela aparência do texto extraído.
-      async function reconhecer(canvas) {
+      async function reconhecer(worker, canvas) {
         const { data } = await worker.recognize(canvas.toDataURL('image/jpeg', 0.95));
         return { texto: data?.text ?? '', confianca: data?.confidence ?? 0 };
       }
 
-      let melhor = await reconhecer(canvasOcr);
-      let melhorAngulo = 0;
-      console.log('[OCR web] 0°: confiança', melhor.confianca);
+      // Roda um lote de ângulos ao mesmo tempo (1 worker do pool por ângulo,
+      // reaproveitando workers em round-robin se o lote for maior que o
+      // pool) e devolve o melhor resultado do lote.
+      async function melhorEmParalelo(angulos) {
+        const resultados = await Promise.all(
+          angulos.map((graus, i) => {
+            const canvas = graus === 0 ? canvasOcr : _rotacionarCanvas(canvasOcr, graus);
+            return reconhecer(pool[i % pool.length], canvas).then(r => ({ ...r, graus }));
+          })
+        );
+        resultados.forEach(r => console.log(`[OCR web] ${r.graus}°: confiança`, r.confianca));
+        return resultados.reduce((a, b) => (b.confianca > a.confianca ? b : a));
+      }
 
-      // 1. Orientações naturais (celular deitado ou de cabeça pra baixo) —
-      // caso mais comum, testado primeiro.
+      let melhor = await melhorEmParalelo([0]);
+
+      // 1. Orientações naturais (celular deitado ou de cabeça pra baixo) — as
+      // 3 rodam ao mesmo tempo, não uma de cada vez.
       if (melhor.confianca < 60) {
-        for (const graus of [90, 180, 270]) {
-          const r = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
-          console.log(`[OCR web] ${graus}°: confiança`, r.confianca);
-          if (r.confianca > melhor.confianca) { melhor = r; melhorAngulo = graus; }
-          if (melhor.confianca >= 80) break;
-        }
+        const r = await melhorEmParalelo([90, 180, 270]);
+        if (r.confianca > melhor.confianca) melhor = r;
       }
 
       // 2. Foto tirada torta em qualquer ângulo (não múltiplo de 90°) — varre
-      // o círculo inteiro de 30 em 30 graus usando a confiança real do
-      // Tesseract, depois refina em passos menores ao redor do melhor ângulo
-      // encontrado. Mais lento (pode chegar a ~15 tentativas), mas só entra
-      // em ação quando as tentativas anteriores falharam.
+      // o círculo inteiro de 30 em 30 graus em lotes paralelos (3 de cada
+      // vez), depois refina em passos menores ao redor do melhor ângulo
+      // encontrado. Mais lento (pode chegar a ~5 lotes), mas só entra em
+      // ação quando as tentativas anteriores falharam.
       if (melhor.confianca < 60) {
+        const angulosRestantes = [];
         for (let graus = 30; graus < 360; graus += 30) {
-          if (graus === 90 || graus === 180 || graus === 270) continue; // já testado
-          const r = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
-          console.log(`[OCR web] ${graus}°: confiança`, r.confianca);
-          if (r.confianca > melhor.confianca) { melhor = r; melhorAngulo = graus; }
+          if (graus !== 90 && graus !== 180 && graus !== 270) angulosRestantes.push(graus);
+        }
+        for (let i = 0; i < angulosRestantes.length; i += pool.length) {
+          const lote = angulosRestantes.slice(i, i + pool.length);
+          const r = await melhorEmParalelo(lote);
+          if (r.confianca > melhor.confianca) melhor = r;
           if (melhor.confianca >= 80) break;
         }
 
         // Refino fino ao redor do melhor ângulo encontrado na varredura
         // grossa, caso a leitura tenha melhorado mas ainda não esteja ótima.
         if (melhor.confianca >= 30 && melhor.confianca < 80) {
-          for (const ajuste of [-15, -20, 15, 20]) {
-            const graus = melhorAngulo + ajuste;
-            const r = await reconhecer(_rotacionarCanvas(canvasOcr, graus));
-            console.log(`[OCR web] ${graus}° (refino): confiança`, r.confianca);
-            if (r.confianca > melhor.confianca) melhor = r;
-            if (melhor.confianca >= 80) break;
-          }
+          const ajustes = [-20, -15, 15, 20].map(a => melhor.graus + a);
+          const r = await melhorEmParalelo(ajustes);
+          if (r.confianca > melhor.confianca) melhor = r;
         }
       }
 
@@ -1518,9 +1539,9 @@
     }
 
     // ─── Barcode via BarcodeScanner ──────────────────────────────────────────────
-    async function rodarBarcode(foto, base64) {
+    async function rodarBarcode(foto, base64, canvasBarcode) {
       const BS = window?.Capacitor?.Plugins?.BarcodeScanner;
-      if (!BS) return rodarBarcodeWeb(base64);
+      if (!BS) return rodarBarcodeWeb(base64, canvasBarcode);
       const metodos = Object.keys(BS);
 
       console.log('[Barcode] métodos disponíveis:', metodos);
@@ -1607,15 +1628,34 @@
       return _zxingReader;
     }
 
-    async function rodarBarcodeWeb(base64) {
+    async function rodarBarcodeWeb(base64, canvasBarcode) {
       const reader = await _getZxingReader();
-      try {
-        const resultado = await reader.decodeFromImageUrl(`data:image/jpeg;base64,${base64}`);
-        return resultado.getText();
-      } catch (err) {
-        console.warn('[Barcode web] não detectado:', err?.message ?? err);
-        return null;
+
+      async function tentar(dataUrl) {
+        try {
+          const resultado = await reader.decodeFromImageUrl(dataUrl);
+          return resultado.getText();
+        } catch (err) {
+          return null;
+        }
       }
+
+      let resultado = await tentar(`data:image/jpeg;base64,${base64}`);
+      if (resultado) return resultado;
+
+      // Celular deitado/de cabeça pra baixo — tenta girar, igual fazemos no
+      // OCR. QR/barcode costuma tolerar pequena inclinação sozinho, então as
+      // 4 rotações "redondas" já cobrem a maioria dos casos reais.
+      if (canvasBarcode) {
+        for (const graus of [90, 180, 270]) {
+          const girado = _rotacionarCanvas(canvasBarcode, graus);
+          resultado = await tentar(girado.toDataURL('image/jpeg', 0.92));
+          if (resultado) return resultado;
+        }
+      }
+
+      console.warn('[Barcode web] não detectado em nenhuma rotação');
+      return null;
     }
 
     // ─── Extração do Lote por linha (evita ambiguidade com UC/Peso/Barcode) ───────
