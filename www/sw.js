@@ -4,12 +4,13 @@
 //
 // Incremente CACHE_VERSION a cada deploy: isso invalida o cache antigo
 // automaticamente (activate abaixo apaga qualquer cache com nome diferente).
-const CACHE_VERSION = 'invmg10-v2';
+const CACHE_VERSION = 'invmg10-v3';
 const CACHE_NAME = `app-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `runtime-${CACHE_VERSION}`;
 
-// Precache: app shell + bibliotecas vendorizadas de OCR/barcode, pra
-// funcionarem offline (sinal fraco no galpão) desde a segunda visita.
+// Precache: app shell + biblioteca vendorizada de barcode/QR, pra funcionar
+// offline (sinal fraco no galpão) desde a segunda visita. O OCR agora é só
+// Cloud Vision (precisa de internet de qualquer forma, nada pra precachear).
 const APP_SHELL = [
   './',
   'index.html',
@@ -19,13 +20,6 @@ const APP_SHELL = [
   'img/icons/icon-512.png',
   'img/icons/icon-512-maskable.png',
   'img/icons/apple-touch-icon.png',
-  'vendor/tesseract/tesseract.min.js',
-  'vendor/tesseract/worker.min.js',
-  'vendor/tesseract/tesseract-core-simd-lstm.wasm.js',
-  'vendor/tesseract/tesseract-core-simd-lstm.wasm',
-  'vendor/tesseract/tesseract-core-lstm.wasm.js',
-  'vendor/tesseract/tesseract-core-lstm.wasm',
-  'vendor/tesseract/por.traineddata.gz',
   'vendor/zxing/zxing-library.min.js',
   'vendor/zxing/zxing-browser.min.js'
 ];

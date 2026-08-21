@@ -1254,40 +1254,10 @@
       return canvas.toDataURL('image/jpeg', qualidade).split(',')[1];
     }
 
-    // Melhora a legibilidade pro OCR: converte pra escala de cinza e aplica
-    // alongamento de contraste (stretch linear baseado no min/máx de brilho da
-    // foto). Fotos de etiqueta em galpão costumam ter iluminação desigual/baixo
-    // contraste, e isso ajuda bastante o Tesseract sem custar processamento
-    // pesado. Não mexe no canvas original (o do barcode continua colorido).
-    function _prepararCanvasParaOCR(canvasOrigem) {
-      const canvas = document.createElement('canvas');
-      canvas.width = canvasOrigem.width;
-      canvas.height = canvasOrigem.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(canvasOrigem, 0, 0);
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const d = imgData.data;
-
-      let min = 255, max = 0;
-      for (let i = 0; i < d.length; i += 4) {
-        const cinza = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-        d[i] = d[i + 1] = d[i + 2] = cinza;
-        if (cinza < min) min = cinza;
-        if (cinza > max) max = cinza;
-      }
-      const alcance = Math.max(1, max - min);
-      for (let i = 0; i < d.length; i += 4) {
-        const v = ((d[i] - min) / alcance) * 255;
-        d[i] = d[i + 1] = d[i + 2] = v < 0 ? 0 : v > 255 ? 255 : v;
-      }
-      ctx.putImageData(imgData, 0, 0);
-      return canvas;
-    }
-
     // Gira um canvas em qualquer ângulo — usado pra testar várias orientações
-    // possíveis da foto no OCR web (ver rodarOCRWeb). O canvas de saída é
-    // redimensionado pra caber a imagem inteira girada (bounding box), com
-    // fundo branco nas sobras (etiqueta é papel branco, não atrapalha o OCR).
+    // possíveis da foto no barcode/QR web (ver rodarBarcodeWeb). O canvas de
+    // saída é redimensionado pra caber a imagem inteira girada (bounding
+    // box), com fundo branco nas sobras.
     function _rotacionarCanvas(canvasOrigem, anguloGraus) {
       const rad = (anguloGraus * Math.PI) / 180;
       const cos = Math.abs(Math.cos(rad));
@@ -1311,7 +1281,7 @@
     async function fotografarEtiqueta() {
       try {
         const Camera = window?.Capacitor?.Plugins?.Camera;
-        let foto, base64, base64Barcode, canvasOcr = null, canvasBarcode = null;
+        let foto, base64, base64Barcode, canvasBarcode = null;
 
         if (Camera) {
           foto = await Camera.getPhoto({
@@ -1334,22 +1304,20 @@
           console.log('[Camera] base64 length:', base64.length);
         } else {
           const file = await capturarFotoWeb();
-          // Base em resolução mais alta (2000px) reaproveitada tanto pro
-          // barcode (colorido) quanto como ponto de partida do OCR (que
-          // recebe, além disso, escala de cinza + contraste — ver
-          // _prepararCanvasParaOCR).
+          // Base em resolução mais alta (2000px), colorida — reaproveitada
+          // pro barcode e como fonte pro OCR (Cloud Vision lida melhor com
+          // a imagem natural do que com pré-processamento manual).
           const canvasBase = await _imageFileParaCanvas(file, 2000);
           canvasBarcode = canvasBase;
-          canvasOcr = _prepararCanvasParaOCR(canvasBase);
           base64Barcode = _canvasParaBase64(canvasBase);
-          base64 = _canvasParaBase64(canvasOcr, 0.95);
+          base64 = base64Barcode;
           foto = { path: null, webPath: null };
         }
 
         setAiStatus(true, 'Lendo QR Code e texto da etiqueta...');
 
         const [resultadoOCR, resultadoQR] = await Promise.allSettled([
-          rodarOCR(foto, base64, canvasOcr, base64Barcode),
+          rodarOCR(foto, base64, base64Barcode),
           rodarBarcode(foto, base64Barcode, canvasBarcode)
         ]);
 
@@ -1450,28 +1418,17 @@
     // de debug em fotografarEtiqueta, só no navegador).
     let _ultimaFonteOCR = '?';
 
-    async function rodarOCR(foto, base64, canvasOcr, base64Colorido) {
+    async function rodarOCR(foto, base64, base64Colorido) {
       const OCR = window?.Capacitor?.Plugins?.CapacitorOcr;
       if (!OCR) {
-        // Se houver chave do Cloud Vision configurada, tenta primeiro — ele
-        // lê texto em qualquer orientação de fábrica (mesma tecnologia do
-        // Lens/MLKit), sem precisar de rotação manual. Cai pro leitor local
-        // (offline) se não tiver chave, não tiver internet, ou a API falhar.
+        // Só Cloud Vision no navegador — sem leitor local de reserva. Se não
+        // tiver chave configurada ou a API falhar, o OCR simplesmente não
+        // preenche nada (o usuário digita manualmente).
         const visionKey = await getVisionApiKey();
         console.log('[OCR] chave do Cloud Vision configurada?', !!visionKey, visionKey ? `(começa com "${visionKey.slice(0, 6)}...")` : '');
-        if (visionKey) {
-          try {
-            const texto = await rodarOCRCloudVision(base64Colorido ?? base64, visionKey);
-            _ultimaFonteOCR = 'Cloud Vision';
-            return texto;
-          } catch (e) {
-            console.warn('[OCR] Cloud Vision falhou, usando leitor local:', e.message);
-            _ultimaFonteOCR = `Tesseract local (Cloud Vision falhou: ${e.message})`;
-            return rodarOCRWeb(canvasOcr);
-          }
-        }
-        _ultimaFonteOCR = 'Tesseract local (sem chave configurada)';
-        return rodarOCRWeb(canvasOcr);
+        if (!visionKey) throw new Error('Cloud Vision: nenhuma chave configurada');
+        _ultimaFonteOCR = 'Cloud Vision';
+        return rodarOCRCloudVision(base64Colorido ?? base64, visionKey);
       }
 
       _ultimaFonteOCR = 'MLKit (nativo)';
@@ -1505,10 +1462,11 @@
     }
 
     // ─── OCR via Google Cloud Vision API (mesma tecnologia do Lens/MLKit) ─────────
-    // DOCUMENT_TEXT_DETECTION lida com texto em qualquer orientação nativamente
-    // (não precisa de rotação manual, ao contrário do Tesseract local). Exige
-    // internet e uma chave de API configurada em "Configurar acesso" — o
-    // usuário decide se quer usar (é opcional, ver rodarOCR).
+    // DOCUMENT_TEXT_DETECTION lida com texto em qualquer orientação
+    // nativamente (não precisa de rotação manual). É o único caminho de OCR
+    // no navegador — exige internet e uma chave de API configurada em
+    // "Configurar acesso" (ver rodarOCR); sem chave, o OCR simplesmente não
+    // preenche nada e o usuário digita manualmente.
     async function rodarOCRCloudVision(base64, apiKey) {
       const resp = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
         method: 'POST',
@@ -1534,103 +1492,6 @@
       const texto = resultado?.fullTextAnnotation?.text ?? '';
       if (!texto.trim()) throw new Error('Cloud Vision: nenhum texto detectado');
       return texto;
-    }
-
-    // ─── OCR via Tesseract.js (fallback web, 100% client-side/offline) ───────────
-    // Vendorizado localmente em vendor/tesseract/ (não CDN em runtime) pra
-    // funcionar mesmo com sinal fraco no galpão, uma vez cacheado pelo SW.
-    // Carregado sob demanda (lazy) no primeiro uso, não no boot da página.
-    //
-    // Usa um POOL de workers (não só 1), pra rodar várias rotações candidatas
-    // ao mesmo tempo em vez de uma de cada vez — corta bastante o tempo de
-    // espera em fotos tortas, sem abrir mão de nenhuma tentativa.
-    const TESSERACT_POOL_SIZE = 3;
-    let _tesseractPoolPromise = null;
-
-    async function _getTesseractPool() {
-      if (_tesseractPoolPromise) return _tesseractPoolPromise;
-      _tesseractPoolPromise = (async () => {
-        await carregarScript('vendor/tesseract/tesseract.min.js');
-        const base = new URL('vendor/tesseract/', document.baseURI).href;
-        const opcoes = {
-          workerPath: base + 'worker.min.js',
-          corePath: base,     // diretório: a lib escolhe sozinha entre a variante
-                               // SIMD e a variante padrão, conforme suporte do device
-          langPath: base,     // busca base + 'por.traineddata.gz'
-          gzip: true,
-          cacheMethod: 'none' // nunca lê/grava no IndexedDB, sempre usa o arquivo local
-        };
-        const workers = [];
-        for (let i = 0; i < TESSERACT_POOL_SIZE; i++) {
-          workers.push(await Tesseract.createWorker('por', 1, opcoes));
-        }
-        return workers;
-      })().catch(err => { _tesseractPoolPromise = null; throw err; });
-      return _tesseractPoolPromise;
-    }
-
-    async function rodarOCRWeb(canvasOcr) {
-      const pool = await _getTesseractPool();
-
-      // Usa a confiança que o próprio Tesseract calcula pra cada leitura
-      // (0-100, baseada no modelo de reconhecimento) — muito mais confiável
-      // do que tentar adivinhar pela aparência do texto extraído.
-      async function reconhecer(worker, canvas) {
-        const { data } = await worker.recognize(canvas.toDataURL('image/jpeg', 0.95));
-        return { texto: data?.text ?? '', confianca: data?.confidence ?? 0 };
-      }
-
-      // Roda um lote de ângulos ao mesmo tempo (1 worker do pool por ângulo,
-      // reaproveitando workers em round-robin se o lote for maior que o
-      // pool) e devolve o melhor resultado do lote.
-      async function melhorEmParalelo(angulos) {
-        const resultados = await Promise.all(
-          angulos.map((graus, i) => {
-            const canvas = graus === 0 ? canvasOcr : _rotacionarCanvas(canvasOcr, graus);
-            return reconhecer(pool[i % pool.length], canvas).then(r => ({ ...r, graus }));
-          })
-        );
-        resultados.forEach(r => console.log(`[OCR web] ${r.graus}°: confiança`, r.confianca));
-        return resultados.reduce((a, b) => (b.confianca > a.confianca ? b : a));
-      }
-
-      let melhor = await melhorEmParalelo([0]);
-
-      // 1. Orientações naturais (celular deitado ou de cabeça pra baixo) — as
-      // 3 rodam ao mesmo tempo, não uma de cada vez.
-      if (melhor.confianca < 60) {
-        const r = await melhorEmParalelo([90, 180, 270]);
-        if (r.confianca > melhor.confianca) melhor = r;
-      }
-
-      // 2. Foto tirada torta em qualquer ângulo (não múltiplo de 90°) — varre
-      // o círculo inteiro de 30 em 30 graus em lotes paralelos (3 de cada
-      // vez), depois refina em passos menores ao redor do melhor ângulo
-      // encontrado. Mais lento (pode chegar a ~5 lotes), mas só entra em
-      // ação quando as tentativas anteriores falharam.
-      if (melhor.confianca < 60) {
-        const angulosRestantes = [];
-        for (let graus = 30; graus < 360; graus += 30) {
-          if (graus !== 90 && graus !== 180 && graus !== 270) angulosRestantes.push(graus);
-        }
-        for (let i = 0; i < angulosRestantes.length; i += pool.length) {
-          const lote = angulosRestantes.slice(i, i + pool.length);
-          const r = await melhorEmParalelo(lote);
-          if (r.confianca > melhor.confianca) melhor = r;
-          if (melhor.confianca >= 80) break;
-        }
-
-        // Refino fino ao redor do melhor ângulo encontrado na varredura
-        // grossa, caso a leitura tenha melhorado mas ainda não esteja ótima.
-        if (melhor.confianca >= 30 && melhor.confianca < 80) {
-          const ajustes = [-20, -15, 15, 20].map(a => melhor.graus + a);
-          const r = await melhorEmParalelo(ajustes);
-          if (r.confianca > melhor.confianca) melhor = r;
-        }
-      }
-
-      if (!melhor.texto.trim()) throw new Error('OCR web: nenhum texto detectado');
-      return melhor.texto;
     }
 
     // ─── Barcode via BarcodeScanner ──────────────────────────────────────────────
