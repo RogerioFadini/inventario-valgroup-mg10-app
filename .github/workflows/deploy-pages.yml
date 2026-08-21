@@ -29,14 +29,6 @@ jobs:
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Injetar chave da Cloud Vision API
-        env:
-          VISION_API_KEY: ${{ secrets.VISION_API_KEY }}
-        run: |
-          if [ -n "$VISION_API_KEY" ]; then
-            sed -i "s|__VISION_API_KEY__|$VISION_API_KEY|g" www/index.html
-          fi
-
       - name: Upload do site (pasta www/)
         uses: actions/upload-pages-artifact@v3
         with:
