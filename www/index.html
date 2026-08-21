@@ -1409,7 +1409,10 @@
           const texto = await rodarOCRPaddle(canvasColorido ?? canvasOcr);
           if (texto && texto.trim()) return texto;
         } catch (e) {
-          console.warn('[OCR] PaddleOCR indisponível, usando Tesseract:', e.message);
+          console.warn('[OCR] PaddleOCR indisponível, usando Tesseract:', e);
+          // Debug temporário: sem isso não tem como ver o erro real no
+          // celular (sem console remoto conectado).
+          alert('PaddleOCR falhou:\n\n' + (e?.stack || e?.message || String(e)));
         }
         return rodarOCRWeb(canvasOcr);
       }
