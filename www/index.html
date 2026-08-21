@@ -1220,6 +1220,41 @@
       return canvas.toDataURL('image/jpeg', qualidade).split(',')[1];
     }
 
+    // Reaproveita um canvas já decodificado, só redimensionando menor (sem
+    // reler o arquivo original) — usado pra gerar uma versão mais leve
+    // especificamente pro envio ao Cloud Vision (ver fotografarEtiqueta).
+    function _redimensionarCanvas(canvasOrigem, maxDim) {
+      const escala = Math.min(1, maxDim / Math.max(canvasOrigem.width, canvasOrigem.height));
+      if (escala >= 1) return canvasOrigem;
+      const w = Math.round(canvasOrigem.width * escala);
+      const h = Math.round(canvasOrigem.height * escala);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(canvasOrigem, 0, 0, w, h);
+      return canvas;
+    }
+
+    // Preto e branco pro envio ao Cloud Vision: reduz um pouco mais o
+    // tamanho do JPEG (menos informação de cor pra comprimir) e não afeta a
+    // leitura do texto — não mexe no canvas do barcode/QR (esse continua
+    // colorido, sem risco de piorar a leitura do ZXing).
+    function _paraCinza(canvasOrigem) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvasOrigem.width;
+      canvas.height = canvasOrigem.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(canvasOrigem, 0, 0);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d = imgData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const cinza = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        d[i] = d[i + 1] = d[i + 2] = cinza;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      return canvas;
+    }
+
     // Gira um canvas em qualquer ângulo — usado pra testar várias orientações
     // possíveis da foto no barcode/QR web (ver rodarBarcodeWeb). O canvas de
     // saída é redimensionado pra caber a imagem inteira girada (bounding
@@ -1270,20 +1305,25 @@
           console.log('[Camera] base64 length:', base64.length);
         } else {
           const file = await capturarFotoWeb();
-          // Base em resolução mais alta (2000px), colorida — reaproveitada
-          // pro barcode e como fonte pro OCR (Cloud Vision lida melhor com
-          // a imagem natural do que com pré-processamento manual).
+          // Base em resolução mais alta (2000px) pro barcode/QR — código de
+          // barras se beneficia de mais detalhe, principalmente 1D e DATA_MATRIX.
           const canvasBase = await _imageFileParaCanvas(file, 2000);
           canvasBarcode = canvasBase;
-          base64Barcode = _canvasParaBase64(canvasBase);
-          base64 = base64Barcode;
+          base64Barcode = _canvasParaBase64(canvasBase, 0.9);
+
+          // Pro Cloud Vision, uma imagem bem menor/mais comprimida já é
+          // suficiente pra ler texto de etiqueta, e acelera bastante o envio
+          // — importante com sinal fraco no galpão. Reaproveita o canvas já
+          // decodificado, só reduz o tamanho (sem reler o arquivo).
+          const canvasParaOCR = _paraCinza(_redimensionarCanvas(canvasBase, 1280));
+          base64 = _canvasParaBase64(canvasParaOCR, 0.8);
           foto = { path: null, webPath: null };
         }
 
         setAiStatus(true, 'Lendo QR Code e texto da etiqueta...');
 
         const [resultadoOCR, resultadoQR] = await Promise.allSettled([
-          rodarOCR(foto, base64, base64Barcode),
+          rodarOCR(foto, base64),
           rodarBarcode(foto, base64Barcode, canvasBarcode)
         ]);
 
@@ -1374,7 +1414,7 @@
     // de debug em fotografarEtiqueta, só no navegador).
     let _ultimaFonteOCR = '?';
 
-    async function rodarOCR(foto, base64, base64Colorido) {
+    async function rodarOCR(foto, base64) {
       const OCR = window?.Capacitor?.Plugins?.CapacitorOcr;
       if (!OCR) {
         // Só Cloud Vision no navegador — sem leitor local de reserva. Se não
@@ -1383,7 +1423,7 @@
         const visionKey = await getVisionApiKey();
         if (!visionKey) throw new Error('Cloud Vision: nenhuma chave configurada');
         _ultimaFonteOCR = 'Cloud Vision';
-        return rodarOCRCloudVision(base64Colorido ?? base64, visionKey);
+        return rodarOCRCloudVision(base64, visionKey);
       }
 
       _ultimaFonteOCR = 'MLKit (nativo)';
