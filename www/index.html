@@ -5,6 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Valgroup MG10</title>
+  <!-- Incremente esse número a cada deploy relevante — usado pra detectar
+       automaticamente quando uma versão mais nova foi publicada (ver
+       verificarAtualizacaoDisponivel em DOMContentLoaded). -->
+  <meta name="app-version" content="4">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1a2855">
   <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
@@ -3318,6 +3322,8 @@
       const t = document.getElementById('toast');
       t.textContent = msg;
       t.className = 'show ' + type;
+      t.onclick = null; // limpa qualquer clique especial de um toast anterior (ex: aviso de atualização)
+      t.style.cursor = '';
       clearTimeout(t._timer);
       t._timer = setTimeout(() => { t.className = ''; }, duration);
     }
@@ -4413,6 +4419,31 @@
           localStorage.setItem(JA_AVISOU_KEY, '1');
         }, 1500);
       }
+
+      // Um app instalado na Tela de Início do iPhone costuma "retomar" a
+      // página da memória ao voltar de outro app, sem recarregar nada — o
+      // Service Worker sozinho não ajuda nesse caso, já que só entra em ação
+      // numa navegação de verdade. Por isso, checa manualmente toda vez que
+      // o app volta a ficar visível, sem forçar recarregar (evita perder o
+      // que estiver sendo digitado no formulário).
+      async function verificarAtualizacaoDisponivel() {
+        try {
+          const resp = await fetch('index.html', { cache: 'no-store' });
+          const html = await resp.text();
+          const versaoServidor = html.match(/<meta name="app-version" content="(\d+)">/)?.[1];
+          const versaoAtual = document.querySelector('meta[name="app-version"]')?.content;
+          if (versaoServidor && versaoAtual && versaoServidor !== versaoAtual) {
+            toast('Nova versão disponível — toque aqui pra atualizar.', 'info', 20000);
+            const t = document.getElementById('toast');
+            t.style.cursor = 'pointer';
+            t.onclick = () => location.reload();
+          }
+        } catch (e) { /* offline ou falha de rede — ignora silenciosamente */ }
+      }
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') verificarAtualizacaoDisponivel();
+      });
     });
 
     window.addEventListener('DOMContentLoaded', () => {
