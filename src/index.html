@@ -1,10 +1,14 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Valgroup MG10</title>
+  <!-- Incremente esse número a cada deploy relevante — usado pra detectar
+       automaticamente quando uma versão mais nova foi publicada (ver
+       verificarAtualizacaoDisponivel em DOMContentLoaded). -->
+  <meta name="app-version" content="4">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1a2855">
   <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
@@ -497,6 +501,657 @@
     }
 
     footer span { color: var(--muted); }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       CÁLCULOS SILOS — adaptado de Silos_Avancado.html pro tema do app.
+       Tudo escopado dentro de #viewSilos pra não vazar nem colidir com o
+       resto do CSS (a calculadora original usava nomes de classe genéricos
+       como .card, .status, .result, .total). As variáveis --card/--border/
+       --text/--muted já são herdadas do :root do app (mesmos nomes); só as
+       que não existem no app (--subtext, --blue, --green, --orange, --red,
+       --shadow, --shadow-lg, --radius) são definidas aqui, mapeadas pros
+       tokens do app onde faz sentido.
+    ═══════════════════════════════════════════════════════════════════════ */
+
+    #viewSilos {
+      --subtext: var(--muted);
+      --blue: var(--accent2);
+      --green: var(--success);
+      --orange: #f59e0b;
+      --red: var(--danger);
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      --shadow-lg: 0 25px 60px rgba(0, 0, 0, 0.45);
+      --radius: var(--rl);
+      padding: 24px 0 50px;
+    }
+
+    #viewSilos * { box-sizing: border-box; }
+
+    #viewSilos .container { max-width: 1180px; margin: auto; }
+
+    #viewSilos .silos {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 26px;
+    }
+
+    #viewSilos .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow);
+      animation: silosFadeUp 0.6s ease both;
+      transition: box-shadow 0.25s ease, background 0.4s ease, border-color 0.4s ease;
+    }
+
+    #viewSilos .card:hover { box-shadow: var(--shadow-lg); }
+
+    #viewSilos .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    #viewSilos .card-title { font-size: 21px; font-weight: 700; }
+
+    #viewSilos .card-sub {
+      margin-top: 4px;
+      font-size: 12.5px;
+      color: var(--subtext);
+    }
+
+    #viewSilos .card-sub span { color: var(--text); font-weight: 600; }
+
+    #viewSilos .status {
+      font-size: 12.5px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--subtext);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    #viewSilos .status.st-vazio { color: var(--muted); }
+    #viewSilos .status.st-baixo { color: var(--blue); background: rgba(0,158,26,0.10); border-color: rgba(0,158,26,0.25); }
+    #viewSilos .status.st-normal { color: var(--green); background: rgba(61,201,122,0.10); border-color: rgba(61,201,122,0.25); }
+    #viewSilos .status.st-alto { color: var(--orange); background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); }
+    #viewSilos .status.st-cheio { color: var(--red); background: rgba(224,80,80,0.12); border-color: rgba(224,80,80,0.3); }
+
+    #viewSilos .silo-area {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      height: 460px;
+      position: relative;
+    }
+
+    #viewSilos .silo-structure { width: 180px; position: relative; padding-bottom: 62px; }
+
+    #viewSilos .drag-zone {
+      position: relative;
+      cursor: ns-resize;
+      touch-action: none;
+      user-select: none;
+      transition: filter 0.15s ease;
+    }
+
+    #viewSilos .drag-zone:hover { filter: brightness(1.05); }
+    #viewSilos .drag-zone.dragging { filter: brightness(1.12); }
+
+    #viewSilos .drag-zone.dragging .fill,
+    #viewSilos .drag-zone.dragging .cone-product {
+      transition: none !important;
+    }
+
+    #viewSilos .drag-hint {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+
+    #viewSilos .silo-top {
+      position: relative;
+      width: 180px;
+      height: 14px;
+      background: linear-gradient(to bottom, #eef1f4, #9aa3ac);
+      border: 2px solid #7c858f;
+      border-radius: 50% 50% 7px 7px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.18);
+      z-index: 5;
+    }
+
+    #viewSilos .silo-top::before {
+      content: "";
+      position: absolute;
+      top: -7px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 18px;
+      height: 7px;
+      background: #9ca3af;
+      border: 1.5px solid #737b84;
+      border-radius: 6px 6px 0 0;
+    }
+
+    #viewSilos .silo-body {
+      position: relative;
+      width: 160px;
+      height: 210px;
+      margin: -4px auto 0;
+      overflow: hidden;
+      border-left: 5px solid #8d969f;
+      border-right: 5px solid #8d969f;
+      background: linear-gradient(90deg, #c7ccd1 0%, #f4f5f6 18%, #ffffff 50%, #d5d9dd 82%, #b8bec4 100%);
+      box-shadow: inset 8px 0 15px rgba(0,0,0,0.10), inset -8px 0 15px rgba(0,0,0,0.10);
+      z-index: 4;
+    }
+
+    #viewSilos .fill {
+      position: absolute;
+      left: 0; bottom: 0;
+      width: 100%; height: 0%;
+      transition: height 0.5s cubic-bezier(.4,0,.2,1), background 0.35s ease;
+      background: linear-gradient(to right, #1565c0, #2196f3, #42a5f5);
+      box-shadow: inset 0 8px 15px rgba(255,255,255,0.14);
+    }
+
+    #viewSilos .fill::after {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 6px;
+      background: rgba(255,255,255,0.35);
+    }
+
+    #viewSilos .percent {
+      position: absolute;
+      z-index: 10;
+      width: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      text-align: center;
+      font-size: 27px;
+      font-weight: 700;
+      color: white;
+      text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    }
+
+    #viewSilos .weld-marks {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      pointer-events: none;
+    }
+
+    #viewSilos .weld-marks span {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 0;
+      border-top: 1px solid rgba(0,0,0,0.32);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.22);
+    }
+
+    #viewSilos .silo-ring {
+      position: relative;
+      width: 180px; height: 5.5px;
+      margin-top: -1px;
+      background: linear-gradient(to bottom, #6f7881, #b9bec3);
+      border-radius: 3px;
+      z-index: 8;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+    }
+
+    #viewSilos .silo-cone {
+      position: relative;
+      width: 160px; height: 92px;
+      margin: 0 auto;
+      clip-path: polygon(0% 0%, 100% 0%, 58% 88%, 58% 100%, 42% 100%, 42% 88%);
+      background: linear-gradient(90deg, #aeb5bb 0%, #e3e6e8 35%, #f4f5f6 50%, #c5cbd0 75%, #9da5ac 100%);
+      filter: drop-shadow(0 4px 4px rgba(0,0,0,0.20));
+      z-index: 5;
+    }
+
+    #viewSilos .cone-product {
+      position: absolute;
+      left: 0; bottom: 0;
+      width: 100%; height: 100%;
+      clip-path: polygon(3.125% 0%, 96.875% 0%, 57.5% 88%, 57.5% 100%, 42.5% 100%, 42.5% 88%);
+      -webkit-mask-image: linear-gradient(to top, black 0%, black 0%, transparent 0%, transparent 100%);
+      mask-image: linear-gradient(to top, black 0%, black 0%, transparent 0%, transparent 100%);
+      opacity: 0;
+      background: linear-gradient(90deg, #1565c0, #2196f3, #42a5f5);
+      transition: opacity 0.4s ease, background 0.35s ease, -webkit-mask-image 0.4s ease, mask-image 0.4s ease;
+    }
+
+    #viewSilos .silo-outlet {
+      position: absolute;
+      bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 28px; height: 32px;
+      background: linear-gradient(90deg, #8d969f, #d5d9dc, #8d969f);
+      border: 3px solid #777f87;
+      border-top: none;
+      z-index: 9;
+    }
+
+    #viewSilos .support { position: absolute; bottom: 0; width: 100%; height: 50px; z-index: 1; }
+
+    #viewSilos .leg {
+      position: absolute; bottom: 0; width: 8px; height: 50px;
+      background: linear-gradient(90deg, #737b83, #b9bec2, #737b83);
+      border-radius: 2px;
+    }
+
+    #viewSilos .leg.left { left: 22px; }
+    #viewSilos .leg.right { right: 22px; }
+
+    #viewSilos .support-bar {
+      position: absolute; bottom: 5px; left: 12px;
+      width: 156px; height: 7px;
+      background: linear-gradient(to bottom, #9da4aa, #666f77);
+      border-radius: 5px;
+    }
+
+    #viewSilos .mode-tabs {
+      display: flex;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+      margin-top: 8px;
+      gap: 4px;
+    }
+
+    #viewSilos .mode-tabs .tab {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--subtext);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 9px 6px;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    #viewSilos .mode-tabs .tab.active {
+      background: var(--card);
+      color: var(--blue);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+
+    #viewSilos .pct-subtoggle {
+      display: none;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    #viewSilos .pct-subtoggle .subtab {
+      flex: 1;
+      border: 1px dashed var(--border);
+      background: transparent;
+      color: var(--subtext);
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 7px 6px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    #viewSilos .pct-subtoggle .subtab.active {
+      background: rgba(0,158,26,0.10);
+      color: var(--blue);
+      border-color: rgba(0,158,26,0.35);
+      border-style: solid;
+    }
+
+    #viewSilos .input-area { margin-top: 16px; }
+
+    #viewSilos .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    #viewSilos .input-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      line-height: 1.35;
+      min-height: 34px;
+      color: var(--subtext);
+      font-weight: 500;
+    }
+
+    #viewSilos .input-wrapper { position: relative; }
+
+    #viewSilos .input-wrapper input {
+      width: 100%;
+      height: 50px;
+      padding: 0 55px 0 15px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 19px;
+      font-family: inherit;
+      outline: none;
+      background: var(--input-bg);
+      color: var(--text);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    #viewSilos .input-wrapper input:focus {
+      border-color: var(--blue);
+      background: var(--input-focus);
+      box-shadow: 0 0 0 3px rgba(0,158,26,0.14);
+    }
+
+    #viewSilos .unit-symbol {
+      position: absolute;
+      right: 15px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--subtext);
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    #viewSilos .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    #viewSilos .result-box {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    #viewSilos .result-box .result-label { font-size: 12px; color: var(--subtext); margin-bottom: 4px; }
+    #viewSilos .result-box .result-value { font-size: 20px; font-weight: 700; }
+    #viewSilos .result-box .result-value span { font-size: 12px; font-weight: 500; color: var(--subtext); margin-left: 2px; }
+
+    #viewSilos .result {
+      margin-top: 12px;
+      padding: 20px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(0,158,26,0.08), rgba(0,104,16,0.05));
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    #viewSilos .result-label { font-size: 13px; color: var(--subtext); margin-bottom: 6px; }
+
+    #viewSilos .result-value { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; }
+
+    #viewSilos .result-value span { font-size: 17px; font-weight: 500; color: var(--subtext); }
+
+    #viewSilos .result-sub { margin-top: 4px; font-size: 13px; color: var(--subtext); }
+
+    #viewSilos details.advanced {
+      margin-top: 18px;
+      border-top: 1px dashed var(--border);
+      padding-top: 14px;
+    }
+
+    #viewSilos details.advanced summary {
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--blue);
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+
+    #viewSilos details.advanced summary::-webkit-details-marker { display: none; }
+
+    #viewSilos details.advanced summary::before {
+      content: "▸";
+      display: inline-block;
+      transition: transform 0.2s ease;
+      font-size: 11px;
+    }
+
+    #viewSilos details.advanced[open] summary::before { transform: rotate(90deg); }
+
+    #viewSilos .adv-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    #viewSilos .adv-grid label {
+      font-size: 12px;
+      color: var(--subtext);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-weight: 500;
+    }
+
+    #viewSilos .adv-grid input {
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0 10px;
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--input-bg);
+      color: var(--text);
+      outline: none;
+    }
+
+    #viewSilos .adv-grid input:focus { border-color: var(--blue); }
+
+    #viewSilos .calib-info {
+      margin-top: 12px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--subtext);
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+
+    #viewSilos .calib-info b { color: var(--text); }
+
+    #viewSilos .table-btn {
+      margin-top: 12px;
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    #viewSilos .table-btn:hover { background: var(--border); }
+
+    #viewSilos .ref-table-wrapper { margin-top: 10px; max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; }
+
+    #viewSilos table.ref-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+
+    #viewSilos table.ref-table th, #viewSilos table.ref-table td {
+      padding: 8px 10px;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #viewSilos table.ref-table th:first-child, #viewSilos table.ref-table td:first-child { text-align: left; }
+
+    #viewSilos table.ref-table th {
+      position: sticky; top: 0;
+      background: var(--input-bg);
+      color: var(--subtext);
+      font-weight: 600;
+    }
+
+    #viewSilos table.ref-table tbody tr:hover { background: var(--input-bg); }
+
+    #viewSilos .total {
+      margin-top: 28px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 30px;
+      text-align: center;
+      box-shadow: var(--shadow);
+      animation: silosFadeUp 0.7s ease both;
+    }
+
+    #viewSilos .total-label { color: var(--subtext); font-size: 14px; margin-bottom: 6px; font-weight: 500; }
+
+    #viewSilos .total-value { font-size: 40px; font-weight: 800; letter-spacing: -0.5px; }
+
+    #viewSilos .total-sub { margin-top: 6px; font-size: 13.5px; color: var(--subtext); }
+
+    #viewSilos .main-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 30px;
+      animation: silosFadeDown 0.6s ease;
+    }
+
+    #viewSilos .main-tabs .maintab {
+      flex: 1;
+      min-width: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--subtext);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 14px 16px;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    #viewSilos .main-tabs .maintab.active {
+      color: var(--blue);
+      border-color: rgba(0,158,26,0.35);
+      background: linear-gradient(135deg, rgba(0,158,26,0.10), rgba(0,104,16,0.05));
+    }
+
+    #viewSilos .tab-panel { display: none; }
+    #viewSilos .tab-panel.active { display: block; }
+
+    #viewSilos .silo-body-mid {
+      position: relative;
+      width: 160px;
+      margin: 0 auto;
+      overflow: hidden;
+      border-left: 2px solid #8d969f;
+      border-right: 2px solid #8d969f;
+      background: linear-gradient(90deg, #c7ccd1 0%, #f4f5f6 18%, #ffffff 50%, #d5d9dd 82%, #b8bec4 100%);
+      box-shadow: inset 8px 0 15px rgba(0,0,0,0.10), inset -8px 0 15px rgba(0,0,0,0.10);
+      z-index: 4;
+    }
+
+    #viewSilos .funil-blender {
+      position: relative;
+      margin: 0 auto;
+    }
+
+    #viewSilos .funil-marcador {
+      width: 100%;
+    }
+
+    #viewSilos .funil-parede {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, #aeb5bb 0%, #e3e6e8 35%, #f4f5f6 50%, #c5cbd0 75%, #9da5ac 100%);
+      filter: drop-shadow(0 4px 4px rgba(0,0,0,0.20));
+      z-index: 5;
+    }
+
+    #viewSilos .funil-produto {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 6;
+      opacity: 0;
+      background: linear-gradient(90deg, #1565c0, #2196f3, #42a5f5);
+      transition: opacity 0.4s ease, background 0.35s ease, -webkit-mask-image 0.4s ease, mask-image 0.4s ease;
+    }
+
+    #viewSilos .dim-label {
+      position: absolute;
+      left: 100%;
+      margin-left: 8px;
+      width: 140px;
+      font-size: 10px;
+      line-height: 1.3;
+      color: var(--muted);
+      font-weight: 600;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    #viewSilos .blender-note {
+      margin-top: 14px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--subtext);
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.25);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+
+    #viewSilos .blender-note b { color: var(--text); }
+
+    #viewSilos .density-hint {
+      margin-top: 8px;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+
+    #viewSilos .density-hint b { color: var(--subtext); }
+
+    @keyframes silosFadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes silosFadeDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 860px) {
+      #viewSilos .silos { grid-template-columns: 1fr; }
+      #viewSilos .adv-grid { grid-template-columns: 1fr; }
+    }
+
   </style>
 </head>
 
@@ -632,6 +1287,7 @@
   <div class="tabbar">
     <button type="button" class="tab-btn active" id="tabBtnNovo" onclick="mudarAba('novo')">Novo Lançamento</button>
     <button type="button" class="tab-btn" id="tabBtnLista" onclick="mudarAba('lista')">Lançamentos</button>
+    <button type="button" class="tab-btn" id="tabBtnSilos" onclick="mudarAba('silos')">Cálculos Silos</button>
   </div>
 
   <main id="viewNovo">
@@ -814,6 +1470,1584 @@
       </button>
     </div>
     <div id="pendentesCards"></div>
+  </main>
+  <main id="viewSilos" style="display:none;">
+<div class="container">
+
+
+
+
+    <div class="main-tabs">
+        <button class="maintab active" data-tab="pet" onclick="showTab('pet')">🔷 Silos de Flake</button>
+        <button class="maintab" data-tab="resina" onclick="showTab('resina')">🔵 Silos Resina Amorfo Intermediários</button>
+        <button class="maintab" data-tab="pulmao" onclick="showTab('pulmao')">🔵 Silos Pulmão Amorfo</button>
+        <button class="maintab" data-tab="visco" onclick="showTab('visco')">⚪ Silos Viscotech</button>
+        <button class="maintab" data-tab="qualidade" onclick="showTab('qualidade')">⚪ Silos de Qualidade</button>
+    </div>
+
+
+    <div id="tabPet" class="tab-panel active">
+
+
+    <div class="silos">
+
+
+        <!-- =================================================
+             SILO 1
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.05s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Silo 1</div>
+                    <div class="card-sub">Flake de PET: <span id="capnomLabel1">161</span> m³</div>
+                </div>
+                <div class="status" id="status1">Vazio</div>
+            </div>
+
+            <div class="silo-area">
+                <div class="silo-structure" id="silostruct1">
+                    <div class="silo-top" id="silotop1"></div>
+                    <div class="drag-zone" id="dragZone1">
+                        <div class="silo-body" id="silobody1">
+                            <div class="fill" id="fill1"></div>
+                            <div class="weld-marks"><span style="top:9.8182%"></span><span style="top:21.0909%"></span><span style="top:32.3636%"></span><span style="top:43.6364%"></span><span style="top:54.9091%"></span><span style="top:66.1818%"></span><span style="top:77.4545%"></span><span style="top:88.7273%"></span></div>
+                            <div class="percent" id="percent1">0%</div>
+                        </div>
+                        <div class="silo-ring" id="siloring1"></div>
+                        <div class="silo-cone" id="silocone1">
+                            <div class="cone-product" id="coneProduct1"></div>
+                        </div>
+                        <div class="dim-label" data-for="silobody1" id="dimLabelCyl1"></div>
+                        <div class="dim-label" data-for="silocone1" id="dimLabelCone1"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silo="1">
+                <button class="tab active" data-mode="altura" onclick="setMode(1,'altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setMode(1,'percentual')">Percentual</button>
+            </div>
+
+            <div class="pct-subtoggle" id="pctSubtoggle1">
+                <button type="button" class="subtab active" data-tipo="ihm" onclick="setPctTipo(1,'ihm')">IHM (0% = cone cheio)</button>
+                <button type="button" class="subtab" data-tipo="total" onclick="setPctTipo(1,'total')">Capacidade total (0% = vazio)</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabel1">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valor1" step="0.01" min="0" placeholder="0,00" oninput="calcular()">
+                            <div class="unit-symbol" id="unit1">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade do flake (≈ 350 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="dens1" step="1" min="0" value="350" oninput="calcular()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResult1">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResult1">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="result1">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResult1">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raio1" value="2.0825" step="0.0001" oninput="calcular()">
+                    </label>
+                    <label>Altura do cone (m)
+                        <input type="number" id="hcone1" value="2.5" step="0.01" oninput="calcular()">
+                    </label>
+                    <label>Altura do cilindro (m)
+                        <input type="number" id="hcyl1" value="11" step="0.01" oninput="calcular()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfo1"></div>
+
+                <button type="button" class="table-btn" id="tableBtn1" onclick="toggleTable(1)">
+                    Ver tabela de referência (0,5 em 0,5 m)
+                </button>
+
+                <div class="ref-table-wrapper" id="tableWrapper1" style="display:none;">
+                    <table class="ref-table" id="table1"></table>
+                </div>
+
+            </details>
+
+        </div>
+
+
+
+        <!-- =================================================
+             SILO 2
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.12s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Silo 2</div>
+                    <div class="card-sub">Flake de PET: <span id="capnomLabel2">161</span> m³</div>
+                </div>
+                <div class="status" id="status2">Vazio</div>
+            </div>
+
+            <div class="silo-area">
+                <div class="silo-structure" id="silostruct2">
+                    <div class="silo-top" id="silotop2"></div>
+                    <div class="drag-zone" id="dragZone2">
+                        <div class="silo-body" id="silobody2">
+                            <div class="fill" id="fill2"></div>
+                            <div class="weld-marks"><span style="top:9.8182%"></span><span style="top:21.0909%"></span><span style="top:32.3636%"></span><span style="top:43.6364%"></span><span style="top:54.9091%"></span><span style="top:66.1818%"></span><span style="top:77.4545%"></span><span style="top:88.7273%"></span></div>
+                            <div class="percent" id="percent2">0%</div>
+                        </div>
+                        <div class="silo-ring" id="siloring2"></div>
+                        <div class="silo-cone" id="silocone2">
+                            <div class="cone-product" id="coneProduct2"></div>
+                        </div>
+                        <div class="dim-label" data-for="silobody2" id="dimLabelCyl2"></div>
+                        <div class="dim-label" data-for="silocone2" id="dimLabelCone2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silo="2">
+                <button class="tab active" data-mode="altura" onclick="setMode(2,'altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setMode(2,'percentual')">Percentual</button>
+            </div>
+
+            <div class="pct-subtoggle" id="pctSubtoggle2">
+                <button type="button" class="subtab active" data-tipo="ihm" onclick="setPctTipo(2,'ihm')">IHM (0% = cone cheio)</button>
+                <button type="button" class="subtab" data-tipo="total" onclick="setPctTipo(2,'total')">Capacidade total (0% = vazio)</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabel2">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valor2" step="0.01" min="0" placeholder="0,00" oninput="calcular()">
+                            <div class="unit-symbol" id="unit2">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade do flake (≈ 350 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="dens2" step="1" min="0" value="350" oninput="calcular()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResult2">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResult2">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="result2">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResult2">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raio2" value="2.0825" step="0.0001" oninput="calcular()">
+                    </label>
+                    <label>Altura do cone (m)
+                        <input type="number" id="hcone2" value="2.5" step="0.01" oninput="calcular()">
+                    </label>
+                    <label>Altura do cilindro (m)
+                        <input type="number" id="hcyl2" value="11" step="0.01" oninput="calcular()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfo2"></div>
+
+                <button type="button" class="table-btn" id="tableBtn2" onclick="toggleTable(2)">
+                    Ver tabela de referência (0,5 em 0,5 m)
+                </button>
+
+                <div class="ref-table-wrapper" id="tableWrapper2" style="display:none;">
+                    <table class="ref-table" id="table2"></table>
+                </div>
+
+            </details>
+
+        </div>
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         TOTAL (PET)
+    ====================================================== -->
+
+    <div class="total">
+        <div class="total-label">Massa total dos silos</div>
+        <div class="total-value" id="total">0,0 T</div>
+        <div class="total-sub" id="totalKg">0 kg</div>
+    </div>
+
+
+    </div>
+    <!-- fim #tabPet -->
+
+
+    <div id="tabResina" class="tab-panel">
+
+
+    <div class="silos">
+
+
+        <!-- =================================================
+             SILO 1A (BLENDER)
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.05s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Silo 1A <span style="font-weight:500;color:var(--subtext);font-size:14px;">(Blender)</span></div>
+                    <div class="card-sub">Amorfo — Capacidade: <span id="capLabelR1A">0</span> m³</div>
+                </div>
+                <div class="status" id="statusR1A">Vazio</div>
+            </div>
+
+            <div class="silo-area" style="height:490px;">
+                <div class="silo-structure" id="silostructR1A" style="width:161px;">
+                    <div class="silo-top" id="silotopR1A" style="width:161px;"></div>
+                    <div class="drag-zone" id="dragZoneR1A">
+                        <div class="silo-body" id="bodyTopR1A" style="height:215px;width:141px;">
+                            <div class="fill" id="fillTopR1A"></div>
+                            <div class="weld-marks"><span style="top:7.1429%"></span><span style="top:21.4286%"></span><span style="top:35.7143%"></span><span style="top:50%"></span><span style="top:64.2857%"></span><span style="top:78.5714%"></span><span style="top:92.8571%"></span></div>
+                            <div class="percent" id="percentR1A">0%</div>
+                        </div>
+                        <div class="silo-ring" id="ringTopR1A" style="width:161px;"></div>
+                        <div class="funil-blender" id="funilR1A" style="width:141px;">
+                            <div class="funil-parede" id="funilParedeR1A"></div>
+                            <div class="funil-produto" id="funilProdutoR1A"></div>
+                            <div class="funil-marcador" id="cone1R1A" style="height:60px;"></div>
+                            <div class="funil-marcador" id="bodyMidR1A" style="height:30px;"></div>
+                            <div class="funil-marcador" id="cone2R1A" style="height:32px;"></div>
+                        </div>
+                        <div class="dim-label" data-for="bodyTopR1A">Cilindro 9,25 m</div>
+                        <div class="dim-label" data-for="cone1R1A">Cone 1,5 m</div>
+                        <div class="dim-label" data-for="bodyMidR1A">Cilindro 1,5 m</div>
+                        <div class="dim-label" data-for="cone2R1A">Cone 0,85 m</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silor="1A">
+                <button class="tab active" data-mode="altura" onclick="setModeR('1A','altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setModeR('1A','percentual')">Percentual</button>
+            </div>
+
+            <div class="pct-subtoggle" id="pctSubtoggleR1A">
+                <button type="button" class="subtab active" data-tipo="ihm" onclick="setPctTipoR('1A','ihm')">IHM (0% = cones cheios)</button>
+                <button type="button" class="subtab" data-tipo="total" onclick="setPctTipoR('1A','total')">Capacidade total (0% = vazio)</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabelR1A">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valorR1A" step="0.01" min="0" placeholder="0,00" oninput="calcularResina()">
+                            <div class="unit-symbol" id="unitR1A">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade aparente da resina amorfa (≈ 800 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="densR1A" step="1" min="0" value="800" oninput="calcularResina()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="density-hint">Dica: densidade da resina amorfa (intermediária) <b>≈ 800 kg/m³</b></div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResultR1A">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResultR1A">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="resultR1A">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResultR1A">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raioR1A" value="1.79" step="0.001" oninput="calcularResina()">
+                    </label>
+                    <label>Cilindro superior (m)
+                        <input type="number" id="hcylR1A" value="9.5" step="0.01" oninput="calcularResina()">
+                    </label>
+                    <label>Cone superior (m)
+                        <input type="number" id="hcone1R1A" value="1.5" step="0.01" oninput="calcularResina()">
+                    </label>
+                    <label>Cilindro entre cones (m)
+                        <input type="number" id="hcylmidR1A" value="1.5" step="0.01" oninput="calcularResina()">
+                    </label>
+                    <label>Cone inferior (m)
+                        <input type="number" id="hcone2R1A" value="1.5" step="0.01" oninput="calcularResina()">
+                    </label>
+                    <label>Raio da câmara intermediária — não medido (m)
+                        <input type="number" id="rmidR1A" value="0.810" step="0.001" oninput="calcularResina()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfoR1A"></div>
+
+            </details>
+
+        </div>
+
+
+
+        <!-- =================================================
+             SILO 2A (NORMAL)
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.10s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Silo 2A</div>
+                    <div class="card-sub">Amorfo — Capacidade: <span id="capLabelR2A">0</span> m³</div>
+                </div>
+                <div class="status" id="statusR2A">Vazio</div>
+            </div>
+
+            <div class="silo-area" style="height:440px;">
+                <div class="silo-structure" id="silostructR2A" style="width:161px;">
+                    <div class="silo-top" id="silotopR2A" style="width:161px;"></div>
+                    <div class="drag-zone" id="dragZoneR2A">
+                        <div class="silo-body" id="bodyTopR2A" style="height:190px;width:141px;">
+                            <div class="fill" id="fillTopR2A"></div>
+                            <div class="weld-marks"><span style="top:12.5%"></span><span style="top:25%"></span><span style="top:37.5%"></span><span style="top:50%"></span><span style="top:62.5%"></span><span style="top:75%"></span><span style="top:87.5%"></span></div>
+                            <div class="percent" id="percentR2A">0%</div>
+                        </div>
+                        <div class="silo-ring" id="ringTopR2A" style="width:161px;"></div>
+                        <div class="silo-cone" id="cone1R2A" style="height:100px;width:141px;">
+                            <div class="cone-product" id="coneProduct1R2A"></div>
+                        </div>
+                        <div class="dim-label" data-for="bodyTopR2A">Cilindro 9,25 m</div>
+                        <div class="dim-label" data-for="cone1R2A">Cone 2,6 m</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silor="2A">
+                <button class="tab active" data-mode="altura" onclick="setModeR('2A','altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setModeR('2A','percentual')">Percentual</button>
+            </div>
+
+            <div class="pct-subtoggle" id="pctSubtoggleR2A">
+                <button type="button" class="subtab active" data-tipo="ihm" onclick="setPctTipoR('2A','ihm')">IHM (0% = cone cheio)</button>
+                <button type="button" class="subtab" data-tipo="total" onclick="setPctTipoR('2A','total')">Capacidade total (0% = vazio)</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabelR2A">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valorR2A" step="0.01" min="0" placeholder="0,00" oninput="calcularResina()">
+                            <div class="unit-symbol" id="unitR2A">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade aparente da resina amorfa (≈ 800 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="densR2A" step="1" min="0" value="800" oninput="calcularResina()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="density-hint">Dica: densidade da resina amorfa (intermediária) <b>≈ 800 kg/m³</b></div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResultR2A">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResultR2A">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="resultR2A">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResultR2A">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raioR2A" value="1.825" step="0.001" oninput="calcularResina()">
+                    </label>
+                    <label>Altura do cone (m)
+                        <input type="number" id="hcone1R2A" value="3" step="0.01" oninput="calcularResina()">
+                    </label>
+                    <label>Altura do cilindro (m)
+                        <input type="number" id="hcylR2A" value="9.5" step="0.01" oninput="calcularResina()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfoR2A"></div>
+
+            </details>
+
+        </div>
+
+
+
+        <!-- =================================================
+             SILO 1B (NORMAL)
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.10s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Silo 1B</div>
+                    <div class="card-sub">Amorfo — Capacidade: <span id="capLabelR1B">0</span> m³</div>
+                </div>
+                <div class="status" id="statusR1B">Vazio</div>
+            </div>
+
+            <div class="silo-area" style="height:440px;">
+                <div class="silo-structure" id="silostructR1B" style="width:161px;">
+                    <div class="silo-top" id="silotopR1B" style="width:161px;"></div>
+                    <div class="drag-zone" id="dragZoneR1B">
+                        <div class="silo-body" id="bodyTopR1B" style="height:190px;width:141px;">
+                            <div class="fill" id="fillTopR1B"></div>
+                            <div class="weld-marks"><span style="top:12.5%"></span><span style="top:25%"></span><span style="top:37.5%"></span><span style="top:50%"></span><span style="top:62.5%"></span><span style="top:75%"></span><span style="top:87.5%"></span></div>
+                            <div class="percent" id="percentR1B">0%</div>
+                        </div>
+                        <div class="silo-ring" id="ringTopR1B" style="width:161px;"></div>
+                        <div class="silo-cone" id="cone1R1B" style="height:100px;width:141px;">
+                            <div class="cone-product" id="coneProduct1R1B"></div>
+                        </div>
+                        <div class="dim-label" data-for="bodyTopR1B">Cilindro 9,25 m</div>
+                        <div class="dim-label" data-for="cone1R1B">Cone 2,6 m</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silor="1B">
+                <button class="tab active" data-mode="altura" onclick="setModeR('1B','altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setModeR('1B','percentual')">Percentual</button>
+            </div>
+
+            <div class="pct-subtoggle" id="pctSubtoggleR1B">
+                <button type="button" class="subtab active" data-tipo="ihm" onclick="setPctTipoR('1B','ihm')">IHM (0% = cone cheio)</button>
+                <button type="button" class="subtab" data-tipo="total" onclick="setPctTipoR('1B','total')">Capacidade total (0% = vazio)</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabelR1B">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valorR1B" step="0.01" min="0" placeholder="0,00" oninput="calcularResina()">
+                            <div class="unit-symbol" id="unitR1B">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade aparente da resina amorfa (≈ 800 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="densR1B" step="1" min="0" value="800" oninput="calcularResina()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="density-hint">Dica: densidade da resina amorfa (intermediária) <b>≈ 800 kg/m³</b></div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResultR1B">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResultR1B">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="resultR1B">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResultR1B">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raioR1B" value="1.825" step="0.001" oninput="calcularResina()">
+                    </label>
+                    <label>Altura do cone (m)
+                        <input type="number" id="hcone1R1B" value="3" step="0.01" oninput="calcularResina()">
+                    </label>
+                    <label>Altura do cilindro (m)
+                        <input type="number" id="hcylR1B" value="9.5" step="0.01" oninput="calcularResina()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfoR1B"></div>
+
+            </details>
+
+        </div>
+
+        <!-- =================================================
+             SILO 2B (BLENDER)
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.05s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Silo 2B <span style="font-weight:500;color:var(--subtext);font-size:14px;">(Blender)</span></div>
+                    <div class="card-sub">Amorfo — Capacidade: <span id="capLabelR2B">0</span> m³</div>
+                </div>
+                <div class="status" id="statusR2B">Vazio</div>
+            </div>
+
+            <div class="silo-area" style="height:490px;">
+                <div class="silo-structure" id="silostructR2B" style="width:161px;">
+                    <div class="silo-top" id="silotopR2B" style="width:161px;"></div>
+                    <div class="drag-zone" id="dragZoneR2B">
+                        <div class="silo-body" id="bodyTopR2B" style="height:215px;width:141px;">
+                            <div class="fill" id="fillTopR2B"></div>
+                            <div class="weld-marks"><span style="top:7.1429%"></span><span style="top:21.4286%"></span><span style="top:35.7143%"></span><span style="top:50%"></span><span style="top:64.2857%"></span><span style="top:78.5714%"></span><span style="top:92.8571%"></span></div>
+                            <div class="percent" id="percentR2B">0%</div>
+                        </div>
+                        <div class="silo-ring" id="ringTopR2B" style="width:161px;"></div>
+                        <div class="funil-blender" id="funilR2B" style="width:141px;">
+                            <div class="funil-parede" id="funilParedeR2B"></div>
+                            <div class="funil-produto" id="funilProdutoR2B"></div>
+                            <div class="funil-marcador" id="cone1R2B" style="height:60px;"></div>
+                            <div class="funil-marcador" id="bodyMidR2B" style="height:30px;"></div>
+                            <div class="funil-marcador" id="cone2R2B" style="height:32px;"></div>
+                        </div>
+                        <div class="dim-label" data-for="bodyTopR2B">Cilindro 9,25 m</div>
+                        <div class="dim-label" data-for="cone1R2B">Cone 1,5 m</div>
+                        <div class="dim-label" data-for="bodyMidR2B">Cilindro 1,5 m</div>
+                        <div class="dim-label" data-for="cone2R2B">Cone 0,85 m</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silor="2B">
+                <button class="tab active" data-mode="altura" onclick="setModeR('2B','altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setModeR('2B','percentual')">Percentual</button>
+            </div>
+
+            <div class="pct-subtoggle" id="pctSubtoggleR2B">
+                <button type="button" class="subtab active" data-tipo="ihm" onclick="setPctTipoR('2B','ihm')">IHM (0% = cones cheios)</button>
+                <button type="button" class="subtab" data-tipo="total" onclick="setPctTipoR('2B','total')">Capacidade total (0% = vazio)</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabelR2B">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valorR2B" step="0.01" min="0" placeholder="0,00" oninput="calcularResina()">
+                            <div class="unit-symbol" id="unitR2B">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade aparente da resina amorfa (≈ 800 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="densR2B" step="1" min="0" value="800" oninput="calcularResina()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="density-hint">Dica: densidade da resina amorfa (intermediária) <b>≈ 800 kg/m³</b></div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResultR2B">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResultR2B">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="resultR2B">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResultR2B">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raioR2B" value="1.79" step="0.001" oninput="calcularResina()">
+                    </label>
+                    <label>Cilindro superior (m)
+                        <input type="number" id="hcylR2B" value="9.5" step="0.01" oninput="calcularResina()">
+                    </label>
+                    <label>Cone superior (m)
+                        <input type="number" id="hcone1R2B" value="1.5" step="0.01" oninput="calcularResina()">
+                    </label>
+                    <label>Cilindro entre cones (m)
+                        <input type="number" id="hcylmidR2B" value="1.5" step="0.01" oninput="calcularResina()">
+                    </label>
+                    <label>Cone inferior (m)
+                        <input type="number" id="hcone2R2B" value="1.5" step="0.01" oninput="calcularResina()">
+                    </label>
+                    <label>Raio da câmara intermediária — não medido (m)
+                        <input type="number" id="rmidR2B" value="0.810" step="0.001" oninput="calcularResina()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfoR2B"></div>
+
+            </details>
+
+        </div>
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         TOTAL (RESINA)
+    ====================================================== -->
+
+    <div class="total">
+        <div class="total-label">Massa total dos silos de resina</div>
+        <div class="total-value" id="totalResina">0,0 T</div>
+        <div class="total-sub" id="totalResinaKg">0 kg</div>
+    </div>
+
+
+    </div>
+    <!-- fim #tabResina -->
+
+
+    <div id="tabPulmao" class="tab-panel">
+
+
+    <div class="silos">
+
+
+        <!-- =================================================
+             PULMÃO EREMA 1
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.05s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Pulmão Erema 1</div>
+                    <div class="card-sub">Amorfo — Capacidade: <span id="capnomLabel3">0</span> m³</div>
+                </div>
+                <div class="status" id="status3">Vazio</div>
+            </div>
+
+            <div class="silo-area">
+                <div class="silo-structure" id="silostruct3">
+                    <div class="silo-top" id="silotop3"></div>
+                    <div class="drag-zone" id="dragZone3">
+                        <div class="silo-body" id="silobody3">
+                            <div class="fill" id="fill3"></div>
+                            <div class="percent" id="percent3">0%</div>
+                        </div>
+                        <div class="silo-ring" id="siloring3"></div>
+                        <div class="silo-cone" id="silocone3">
+                            <div class="cone-product" id="coneProduct3"></div>
+                        </div>
+                        <div class="dim-label" data-for="silobody3" id="dimLabelCyl3"></div>
+                        <div class="dim-label" data-for="silocone3" id="dimLabelCone3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silo="3">
+                <button class="tab active" data-mode="altura" onclick="setMode(3,'altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setMode(3,'percentual')">Percentual</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabel3">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valor3" step="0.01" min="0" placeholder="0,00" oninput="calcularPulmao()">
+                            <div class="unit-symbol" id="unit3">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade da resina amorfa (≈ 800 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="dens3" step="1" min="0" value="800" oninput="calcularPulmao()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResult3">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResult3">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="result3">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResult3">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raio3" value="0.9" step="0.001" oninput="calcularPulmao()">
+                    </label>
+                    <label>Altura do cone (m)
+                        <input type="number" id="hcone3" value="1.3" step="0.01" oninput="calcularPulmao()">
+                    </label>
+                    <label>Altura do cilindro (m)
+                        <input type="number" id="hcyl3" value="2.20" step="0.01" oninput="calcularPulmao()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfo3"></div>
+
+                <button type="button" class="table-btn" id="tableBtn3" onclick="toggleTable(3)">
+                    Ver tabela de referência (0,5 em 0,5 m)
+                </button>
+
+                <div class="ref-table-wrapper" id="tableWrapper3" style="display:none;">
+                    <table class="ref-table" id="table3"></table>
+                </div>
+
+            </details>
+
+        </div>
+
+
+
+        <!-- =================================================
+             PULMÃO EREMA 2
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.12s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Pulmão Erema 2</div>
+                    <div class="card-sub">Amorfo — Capacidade: <span id="capnomLabel4">0</span> m³</div>
+                </div>
+                <div class="status" id="status4">Vazio</div>
+            </div>
+
+            <div class="silo-area">
+                <div class="silo-structure" id="silostruct4">
+                    <div class="silo-top" id="silotop4"></div>
+                    <div class="drag-zone" id="dragZone4">
+                        <div class="silo-body" id="silobody4">
+                            <div class="fill" id="fill4"></div>
+                            <div class="percent" id="percent4">0%</div>
+                        </div>
+                        <div class="silo-ring" id="siloring4"></div>
+                        <div class="silo-cone" id="silocone4">
+                            <div class="cone-product" id="coneProduct4"></div>
+                        </div>
+                        <div class="dim-label" data-for="silobody4" id="dimLabelCyl4"></div>
+                        <div class="dim-label" data-for="silocone4" id="dimLabelCone4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silo="4">
+                <button class="tab active" data-mode="altura" onclick="setMode(4,'altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setMode(4,'percentual')">Percentual</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabel4">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valor4" step="0.01" min="0" placeholder="0,00" oninput="calcularPulmao()">
+                            <div class="unit-symbol" id="unit4">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade da resina amorfa (≈ 800 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="dens4" step="1" min="0" value="800" oninput="calcularPulmao()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResult4">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResult4">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="result4">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResult4">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raio4" value="1" step="0.001" oninput="calcularPulmao()">
+                    </label>
+                    <label>Altura do cone (m)
+                        <input type="number" id="hcone4" value="1.5" step="0.01" oninput="calcularPulmao()">
+                    </label>
+                    <label>Altura do cilindro (m)
+                        <input type="number" id="hcyl4" value="4" step="0.01" oninput="calcularPulmao()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfo4"></div>
+
+                <button type="button" class="table-btn" id="tableBtn4" onclick="toggleTable(4)">
+                    Ver tabela de referência (0,5 em 0,5 m)
+                </button>
+
+                <div class="ref-table-wrapper" id="tableWrapper4" style="display:none;">
+                    <table class="ref-table" id="table4"></table>
+                </div>
+
+            </details>
+
+        </div>
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         TOTAL (PULMÃO)
+    ====================================================== -->
+
+    <div class="total">
+        <div class="total-label">Massa total dos silos pulmão</div>
+        <div class="total-value" id="totalPulmao">0,0 T</div>
+        <div class="total-sub" id="totalPulmaoKg">0 kg</div>
+    </div>
+
+
+    </div>
+    <!-- fim #tabPulmao -->
+
+
+    <div id="tabVisco" class="tab-panel">
+
+
+    <div class="silos">
+
+
+        <!-- =================================================
+             SILO RESFRIAMENTO
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.05s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Silo Resfriamento</div>
+                    <div class="card-sub">Resina — Capacidade: <span id="capnomLabel5">0</span> m³</div>
+                </div>
+                <div class="status" id="status5">Vazio</div>
+            </div>
+
+            <div class="silo-area">
+                <div class="silo-structure" id="silostruct5">
+                    <div class="silo-top" id="silotop5"></div>
+                    <div class="drag-zone" id="dragZone5">
+                        <div class="silo-body" id="silobody5">
+                            <div class="fill" id="fill5"></div>
+                            <div class="percent" id="percent5">0%</div>
+                        </div>
+                        <div class="silo-ring" id="siloring5"></div>
+                        <div class="silo-cone" id="silocone5">
+                            <div class="cone-product" id="coneProduct5"></div>
+                        </div>
+                        <div class="dim-label" data-for="silobody5" id="dimLabelCyl5"></div>
+                        <div class="dim-label" data-for="silocone5" id="dimLabelCone5"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silo="5">
+                <button class="tab active" data-mode="altura" onclick="setMode(5,'altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setMode(5,'percentual')">Percentual</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabel5">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valor5" step="0.01" min="0" placeholder="0,00" oninput="calcularVisco()">
+                            <div class="unit-symbol" id="unit5">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade da resina (≈ 880 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="dens5" step="1" min="0" value="880" oninput="calcularVisco()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResult5">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResult5">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="result5">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResult5">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raio5" value="0.9" step="0.001" oninput="calcularVisco()">
+                    </label>
+                    <label>Altura do cone (m)
+                        <input type="number" id="hcone5" value="1.25" step="0.01" oninput="calcularVisco()">
+                    </label>
+                    <label>Altura do cilindro (m)
+                        <input type="number" id="hcyl5" value="3.75" step="0.01" oninput="calcularVisco()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfo5"></div>
+
+                <button type="button" class="table-btn" id="tableBtn5" onclick="toggleTable(5)">
+                    Ver tabela de referência (0,5 em 0,5 m)
+                </button>
+
+                <div class="ref-table-wrapper" id="tableWrapper5" style="display:none;">
+                    <table class="ref-table" id="table5"></table>
+                </div>
+
+            </details>
+
+        </div>
+
+
+
+        <!-- =================================================
+             PULMÃO CZ
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.12s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Pulmão CZ</div>
+                    <div class="card-sub">Resina — Capacidade: <span id="capnomLabel6">0</span> m³</div>
+                </div>
+                <div class="status" id="status6">Vazio</div>
+            </div>
+
+            <div class="silo-area">
+                <div class="silo-structure" id="silostruct6">
+                    <div class="silo-top" id="silotop6"></div>
+                    <div class="drag-zone" id="dragZone6">
+                        <div class="silo-body" id="silobody6">
+                            <div class="fill" id="fill6"></div>
+                            <div class="percent" id="percent6">0%</div>
+                        </div>
+                        <div class="silo-ring" id="siloring6"></div>
+                        <div class="silo-cone" id="silocone6">
+                            <div class="cone-product" id="coneProduct6"></div>
+                        </div>
+                        <div class="dim-label" data-for="silobody6" id="dimLabelCyl6"></div>
+                        <div class="dim-label" data-for="silocone6" id="dimLabelCone6"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silo="6">
+                <button class="tab active" data-mode="altura" onclick="setMode(6,'altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setMode(6,'percentual')">Percentual</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabel6">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valor6" step="0.01" min="0" placeholder="0,00" oninput="calcularVisco()">
+                            <div class="unit-symbol" id="unit6">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade da resina (≈ 850 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="dens6" step="1" min="0" value="850" oninput="calcularVisco()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResult6">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResult6">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="result6">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResult6">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raio6" value="0.9" step="0.001" oninput="calcularVisco()">
+                    </label>
+                    <label>Altura do cone (m)
+                        <input type="number" id="hcone6" value="1.5" step="0.01" oninput="calcularVisco()">
+                    </label>
+                    <label>Altura do cilindro (m)
+                        <input type="number" id="hcyl6" value="3.6" step="0.01" oninput="calcularVisco()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfo6"></div>
+
+                <button type="button" class="table-btn" id="tableBtn6" onclick="toggleTable(6)">
+                    Ver tabela de referência (0,5 em 0,5 m)
+                </button>
+
+                <div class="ref-table-wrapper" id="tableWrapper6" style="display:none;">
+                    <table class="ref-table" id="table6"></table>
+                </div>
+
+            </details>
+
+        </div>
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         TOTAL (VISCOTECH)
+    ====================================================== -->
+
+    <div class="total">
+        <div class="total-label">Massa total dos silos Viscotech</div>
+        <div class="total-value" id="totalVisco">0,0 T</div>
+        <div class="total-sub" id="totalViscoKg">0 kg</div>
+    </div>
+
+
+    </div>
+    <!-- fim #tabVisco -->
+
+
+    <div id="tabQualidade" class="tab-panel">
+
+
+    <div class="silos">
+
+
+        <!-- =================================================
+             SSPA (BLENDER)
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.05s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">SSPA <span style="font-weight:500;color:var(--subtext);font-size:14px;">(Blender)</span></div>
+                    <div class="card-sub">Resina — Capacidade: <span id="capLabelRSSPA">0</span> m³</div>
+                </div>
+                <div class="status" id="statusRSSPA">Vazio</div>
+            </div>
+
+            <div class="silo-area" style="height:490px;">
+                <div class="silo-structure" id="silostructRSSPA" style="width:161px;">
+                    <div class="silo-top" id="silotopRSSPA" style="width:161px;"></div>
+                    <div class="drag-zone" id="dragZoneRSSPA">
+                        <div class="silo-body" id="bodyTopRSSPA" style="height:215px;width:141px;">
+                            <div class="fill" id="fillTopRSSPA"></div>
+                            <div class="weld-marks"><span style="top:12.5%"></span><span style="top:25%"></span><span style="top:37.5%"></span><span style="top:50%"></span><span style="top:62.5%"></span><span style="top:75%"></span><span style="top:87.5%"></span></div>
+                            <div class="percent" id="percentRSSPA">0%</div>
+                        </div>
+                        <div class="silo-ring" id="ringTopRSSPA" style="width:161px;"></div>
+                        <div class="funil-blender" id="funilRSSPA" style="width:141px;">
+                            <div class="funil-parede" id="funilParedeRSSPA"></div>
+                            <div class="funil-produto" id="funilProdutoRSSPA"></div>
+                            <div class="funil-marcador" id="cone1RSSPA" style="height:60px;"></div>
+                            <div class="funil-marcador" id="bodyMidRSSPA" style="height:30px;"></div>
+                            <div class="funil-marcador" id="cone2RSSPA" style="height:32px;"></div>
+                        </div>
+                        <div class="dim-label" data-for="bodyTopRSSPA">Cilindro 9,5 m</div>
+                        <div class="dim-label" data-for="cone1RSSPA">Cone 1,5 m</div>
+                        <div class="dim-label" data-for="bodyMidRSSPA">Cilindro 1,5 m</div>
+                        <div class="dim-label" data-for="cone2RSSPA">Cone 1,5 m</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silor="SSPA">
+                <button class="tab active" data-mode="altura" onclick="setModeR('SSPA','altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setModeR('SSPA','percentual')">Percentual</button>
+            </div>
+
+            <div class="pct-subtoggle" id="pctSubtoggleRSSPA">
+                <button type="button" class="subtab active" data-tipo="ihm" onclick="setPctTipoR('SSPA','ihm')">IHM (0% = cones cheios)</button>
+                <button type="button" class="subtab" data-tipo="total" onclick="setPctTipoR('SSPA','total')">Capacidade total (0% = vazio)</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabelRSSPA">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valorRSSPA" step="0.01" min="0" placeholder="0,00" oninput="calcularQualidade()">
+                            <div class="unit-symbol" id="unitRSSPA">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade aparente da resina (≈ 880 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="densRSSPA" step="1" min="0" value="880" oninput="calcularQualidade()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="density-hint">Dica: densidade típica da resina <b>≈ 880 kg/m³</b></div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResultRSSPA">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResultRSSPA">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="resultRSSPA">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResultRSSPA">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raioRSSPA" value="1.79" step="0.001" oninput="calcularQualidade()">
+                    </label>
+                    <label>Cilindro superior (m)
+                        <input type="number" id="hcylRSSPA" value="9.5" step="0.01" oninput="calcularQualidade()">
+                    </label>
+                    <label>Cone superior (m)
+                        <input type="number" id="hcone1RSSPA" value="1.5" step="0.01" oninput="calcularQualidade()">
+                    </label>
+                    <label>Cilindro entre cones (m)
+                        <input type="number" id="hcylmidRSSPA" value="1.5" step="0.01" oninput="calcularQualidade()">
+                    </label>
+                    <label>Cone inferior (m)
+                        <input type="number" id="hcone2RSSPA" value="1.5" step="0.01" oninput="calcularQualidade()">
+                    </label>
+                    <label>Raio da câmara intermediária — não medido (m)
+                        <input type="number" id="rmidRSSPA" value="0.810" step="0.001" oninput="calcularQualidade()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfoRSSPA"></div>
+
+            </details>
+
+        </div>
+
+
+
+        <!-- =================================================
+             SSPB (BLENDER)
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.10s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">SSPB <span style="font-weight:500;color:var(--subtext);font-size:14px;">(Blender)</span></div>
+                    <div class="card-sub">Resina — Capacidade: <span id="capLabelRSSPB">0</span> m³</div>
+                </div>
+                <div class="status" id="statusRSSPB">Vazio</div>
+            </div>
+
+            <div class="silo-area" style="height:490px;">
+                <div class="silo-structure" id="silostructRSSPB" style="width:161px;">
+                    <div class="silo-top" id="silotopRSSPB" style="width:161px;"></div>
+                    <div class="drag-zone" id="dragZoneRSSPB">
+                        <div class="silo-body" id="bodyTopRSSPB" style="height:215px;width:141px;">
+                            <div class="fill" id="fillTopRSSPB"></div>
+                            <div class="weld-marks"><span style="top:12.5%"></span><span style="top:25%"></span><span style="top:37.5%"></span><span style="top:50%"></span><span style="top:62.5%"></span><span style="top:75%"></span><span style="top:87.5%"></span></div>
+                            <div class="percent" id="percentRSSPB">0%</div>
+                        </div>
+                        <div class="silo-ring" id="ringTopRSSPB" style="width:161px;"></div>
+                        <div class="funil-blender" id="funilRSSPB" style="width:141px;">
+                            <div class="funil-parede" id="funilParedeRSSPB"></div>
+                            <div class="funil-produto" id="funilProdutoRSSPB"></div>
+                            <div class="funil-marcador" id="cone1RSSPB" style="height:60px;"></div>
+                            <div class="funil-marcador" id="bodyMidRSSPB" style="height:30px;"></div>
+                            <div class="funil-marcador" id="cone2RSSPB" style="height:32px;"></div>
+                        </div>
+                        <div class="dim-label" data-for="bodyTopRSSPB">Cilindro 9,5 m</div>
+                        <div class="dim-label" data-for="cone1RSSPB">Cone 1,5 m</div>
+                        <div class="dim-label" data-for="bodyMidRSSPB">Cilindro 1,5 m</div>
+                        <div class="dim-label" data-for="cone2RSSPB">Cone 1,5 m</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silor="SSPB">
+                <button class="tab active" data-mode="altura" onclick="setModeR('SSPB','altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setModeR('SSPB','percentual')">Percentual</button>
+            </div>
+
+            <div class="pct-subtoggle" id="pctSubtoggleRSSPB">
+                <button type="button" class="subtab active" data-tipo="ihm" onclick="setPctTipoR('SSPB','ihm')">IHM (0% = cones cheios)</button>
+                <button type="button" class="subtab" data-tipo="total" onclick="setPctTipoR('SSPB','total')">Capacidade total (0% = vazio)</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabelRSSPB">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valorRSSPB" step="0.01" min="0" placeholder="0,00" oninput="calcularQualidade()">
+                            <div class="unit-symbol" id="unitRSSPB">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade aparente da resina (≈ 880 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="densRSSPB" step="1" min="0" value="880" oninput="calcularQualidade()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="density-hint">Dica: densidade típica da resina <b>≈ 880 kg/m³</b></div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResultRSSPB">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResultRSSPB">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="resultRSSPB">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResultRSSPB">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raioRSSPB" value="1.79" step="0.001" oninput="calcularQualidade()">
+                    </label>
+                    <label>Cilindro superior (m)
+                        <input type="number" id="hcylRSSPB" value="9.5" step="0.01" oninput="calcularQualidade()">
+                    </label>
+                    <label>Cone superior (m)
+                        <input type="number" id="hcone1RSSPB" value="1.5" step="0.01" oninput="calcularQualidade()">
+                    </label>
+                    <label>Cilindro entre cones (m)
+                        <input type="number" id="hcylmidRSSPB" value="1.5" step="0.01" oninput="calcularQualidade()">
+                    </label>
+                    <label>Cone inferior (m)
+                        <input type="number" id="hcone2RSSPB" value="1.5" step="0.01" oninput="calcularQualidade()">
+                    </label>
+                    <label>Raio da câmara intermediária — não medido (m)
+                        <input type="number" id="rmidRSSPB" value="0.810" step="0.001" oninput="calcularQualidade()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfoRSSPB"></div>
+
+            </details>
+
+        </div>
+
+
+
+        <!-- =================================================
+             VISCOTECH (NORMAL)
+        ================================================== -->
+
+        <div class="card" style="animation-delay:0.15s">
+
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Viscotech</div>
+                    <div class="card-sub">Resina — Capacidade: <span id="capLabelRVISCOQ">0</span> m³</div>
+                </div>
+                <div class="status" id="statusRVISCOQ">Vazio</div>
+            </div>
+
+            <div class="silo-area" style="height:440px;">
+                <div class="silo-structure" id="silostructRVISCOQ" style="width:161px;">
+                    <div class="silo-top" id="silotopRVISCOQ" style="width:161px;"></div>
+                    <div class="drag-zone" id="dragZoneRVISCOQ">
+                        <div class="silo-body" id="bodyTopRVISCOQ" style="height:190px;width:141px;">
+                            <div class="fill" id="fillTopRVISCOQ"></div>
+                            <div class="weld-marks"><span style="top:12.5%"></span><span style="top:25%"></span><span style="top:37.5%"></span><span style="top:50%"></span><span style="top:62.5%"></span><span style="top:75%"></span><span style="top:87.5%"></span></div>
+                            <div class="percent" id="percentRVISCOQ">0%</div>
+                        </div>
+                        <div class="silo-ring" id="ringTopRVISCOQ" style="width:161px;"></div>
+                        <div class="silo-cone" id="cone1RVISCOQ" style="height:100px;width:141px;">
+                            <div class="cone-product" id="coneProduct1RVISCOQ"></div>
+                        </div>
+                        <div class="dim-label" data-for="bodyTopRVISCOQ">Cilindro 9,5 m</div>
+                        <div class="dim-label" data-for="cone1RVISCOQ">Cone 3 m</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drag-hint">Clique e arraste no silo para definir o nível</div>
+
+            <div class="mode-tabs" data-silor="VISCOQ">
+                <button class="tab active" data-mode="altura" onclick="setModeR('VISCOQ','altura')">Altura vazia (de cima p/ baixo)</button>
+                <button class="tab" data-mode="percentual" onclick="setModeR('VISCOQ','percentual')">Percentual</button>
+            </div>
+
+            <div class="pct-subtoggle" id="pctSubtoggleRVISCOQ">
+                <button type="button" class="subtab active" data-tipo="ihm" onclick="setPctTipoR('VISCOQ','ihm')">IHM (0% = cone cheio)</button>
+                <button type="button" class="subtab" data-tipo="total" onclick="setPctTipoR('VISCOQ','total')">Capacidade total (0% = vazio)</button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-grid">
+                    <div>
+                        <label class="input-label" id="inputLabelRVISCOQ">Altura vazia (medida do topo)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="valorRVISCOQ" step="0.01" min="0" placeholder="0,00" oninput="calcularQualidade()">
+                            <div class="unit-symbol" id="unitRVISCOQ">m</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Densidade aparente da resina (≈ 880 típico)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="densRVISCOQ" step="1" min="0" value="880" oninput="calcularQualidade()">
+                            <div class="unit-symbol">kg/m³</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="density-hint">Dica: densidade típica da resina <b>≈ 880 kg/m³</b></div>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-box">
+                    <div class="result-label">Ocupação</div>
+                    <div class="result-value"><span id="percentResultRVISCOQ">0,0</span><span>%</span></div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Volume</div>
+                    <div class="result-value"><span id="volResultRVISCOQ">0,0</span><span>m³</span></div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-label">Massa estimada</div>
+                <div class="result-value"><span id="resultRVISCOQ">0,0</span><span>T</span></div>
+                <div class="result-sub" id="kgResultRVISCOQ">0 kg</div>
+            </div>
+
+            <details class="advanced">
+                <summary>Configurações avançadas do silo</summary>
+
+                <div class="adv-grid">
+                    <label>Raio interno (m)
+                        <input type="number" id="raioRVISCOQ" value="1.825" step="0.001" oninput="calcularQualidade()">
+                    </label>
+                    <label>Altura do cone (m)
+                        <input type="number" id="hcone1RVISCOQ" value="3" step="0.01" oninput="calcularQualidade()">
+                    </label>
+                    <label>Altura do cilindro (m)
+                        <input type="number" id="hcylRVISCOQ" value="9.5" step="0.01" oninput="calcularQualidade()">
+                    </label>
+                </div>
+
+                <div class="calib-info" id="calibInfoRVISCOQ"></div>
+
+            </details>
+
+        </div>
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         TOTAL (QUALIDADE)
+    ====================================================== -->
+
+    <div class="total">
+        <div class="total-label">Massa total dos silos de qualidade</div>
+        <div class="total-value" id="totalQualidade">0,0 T</div>
+        <div class="total-sub" id="totalQualidadeKg">0 kg</div>
+    </div>
+
+
+    </div>
+    <!-- fim #tabQualidade -->
+
+
+</div>
   </main>
 
   <footer>dev: <span>Fadini</span></footer>
@@ -1088,6 +3322,8 @@
       const t = document.getElementById('toast');
       t.textContent = msg;
       t.className = 'show ' + type;
+      t.onclick = null; // limpa qualquer clique especial de um toast anterior (ex: aviso de atualização)
+      t.style.cursor = '';
       clearTimeout(t._timer);
       t._timer = setTimeout(() => { t.className = ''; }, duration);
     }
@@ -2183,6 +4419,31 @@
           localStorage.setItem(JA_AVISOU_KEY, '1');
         }, 1500);
       }
+
+      // Um app instalado na Tela de Início do iPhone costuma "retomar" a
+      // página da memória ao voltar de outro app, sem recarregar nada — o
+      // Service Worker sozinho não ajuda nesse caso, já que só entra em ação
+      // numa navegação de verdade. Por isso, checa manualmente toda vez que
+      // o app volta a ficar visível, sem forçar recarregar (evita perder o
+      // que estiver sendo digitado no formulário).
+      async function verificarAtualizacaoDisponivel() {
+        try {
+          const resp = await fetch('index.html', { cache: 'no-store' });
+          const html = await resp.text();
+          const versaoServidor = html.match(/<meta name="app-version" content="(\d+)">/)?.[1];
+          const versaoAtual = document.querySelector('meta[name="app-version"]')?.content;
+          if (versaoServidor && versaoAtual && versaoServidor !== versaoAtual) {
+            toast('Nova versão disponível — toque aqui pra atualizar.', 'info', 20000);
+            const t = document.getElementById('toast');
+            t.style.cursor = 'pointer';
+            t.onclick = () => location.reload();
+          }
+        } catch (e) { /* offline ou falha de rede — ignora silenciosamente */ }
+      }
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') verificarAtualizacaoDisponivel();
+      });
     });
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -2334,8 +4595,10 @@
       document.getElementById('viewLista').style.display = aba === 'lista' ? '' : 'none';
       document.getElementById('viewExportados').style.display = aba === 'exportados' ? '' : 'none';
       document.getElementById('viewPendentes').style.display = aba === 'pendentes' ? '' : 'none';
+      document.getElementById('viewSilos').style.display = aba === 'silos' ? '' : 'none';
       document.getElementById('tabBtnNovo').classList.toggle('active', aba === 'novo');
       document.getElementById('tabBtnLista').classList.toggle('active', aba === 'lista');
+      document.getElementById('tabBtnSilos').classList.toggle('active', aba === 'silos');
       document.getElementById('btnExportadosHeader').style.color = aba === 'exportados' ? 'var(--accent2)' : 'var(--muted)';
       document.getElementById('btnExportadosHeader').style.borderColor = aba === 'exportados' ? 'var(--accent)' : 'var(--border)';
       document.getElementById('btnPendentesHeader').style.color = aba === 'pendentes' ? 'var(--accent2)' : 'var(--muted)';
@@ -3582,6 +5845,1224 @@
         btnTxt.textContent = 'Atualizar';
       }
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CÁLCULOS SILOS — adaptado de Silos_Avancado.html
+    // ═══════════════════════════════════════════════════════════════
+
+/* =========================================================
+   ESTADO
+========================================================= */
+
+const modoAtual = { 1: "altura", 2: "altura", 3: "altura", 4: "altura", 5: "altura", 6: "altura" };
+/* 3-6 (pulmão/Viscotech) não têm IHM real — ficam sempre em "total" */
+const pctTipo = { 1: "ihm", 2: "ihm", 3: "total", 4: "total", 5: "total", 6: "total" };
+
+
+/* =========================================================
+   FORMATAÇÃO PT-BR
+========================================================= */
+
+function fmt(numero, casas) {
+    return numero.toLocaleString("pt-BR", {
+        minimumFractionDigits: casas,
+        maximumFractionDigits: casas
+    });
+}
+
+
+/* =========================================================
+   GEOMETRIA
+========================================================= */
+
+function getConfig(n) {
+    const raio = parseFloat(document.getElementById("raio" + n).value) || 0;
+    const hCone = parseFloat(document.getElementById("hcone" + n).value) || 0;
+    const hCyl = parseFloat(document.getElementById("hcyl" + n).value) || 0;
+    const densidade = parseFloat(document.getElementById("dens" + n).value) || 0;
+
+    /* Capacidade = volume geométrico puro (raio/alturas medidos),
+       sem calibração por placa — mesma lógica dos silos de resina. */
+    const volCilFull = Math.PI * raio * raio * hCyl;
+    const volConeFull = (1 / 3) * Math.PI * raio * raio * hCone;
+    const capNominal = volCilFull + volConeFull;
+
+    return { raio: raio, hCone: hCone, hCyl: hCyl, capNominal: capNominal, densidade: densidade };
+}
+
+function getGeometry(cfg) {
+    const hTotal = cfg.hCone + cfg.hCyl;
+    const volCilFull = Math.PI * cfg.raio * cfg.raio * cfg.hCyl;
+    const volConeFull = (1 / 3) * Math.PI * cfg.raio * cfg.raio * cfg.hCone;
+    const volGeomTotal = volCilFull + volConeFull;
+    const fator = 1;
+
+    return { hTotal, volCilFull, volConeFull, volGeomTotal, fator };
+}
+
+/*
+   Volume de material (calibrado à capacidade nominal),
+   dado h = altura de material medida a partir do FUNDO do silo.
+   O cone enche primeiro (é onde o produto se deposita) e
+   sua relação altura x volume não é linear.
+*/
+function volumeFromHeight(h, cfg, geo) {
+    h = Math.max(0, Math.min(geo.hTotal, h));
+
+    let vol;
+
+    if (cfg.hCone > 0 && h <= cfg.hCone) {
+        vol = (1 / 3) * Math.PI * cfg.raio * cfg.raio * Math.pow(h, 3) / (cfg.hCone * cfg.hCone);
+    } else {
+        vol = geo.volConeFull + Math.PI * cfg.raio * cfg.raio * (h - cfg.hCone);
+    }
+
+    return vol * geo.fator;
+}
+
+/*
+   Inverso de volumeFromHeight: dado um volume de material já
+   calibrado, devolve a altura real (a partir do fundo) que esse
+   volume ocupa. Usado só para desenhar o preenchimento correto
+   do cone e do cilindro na tela.
+*/
+function heightFromVolume(volCalibrado, cfg, geo) {
+    if (geo.fator <= 0) return 0;
+
+    let bruto = volCalibrado / geo.fator;
+    bruto = Math.max(0, Math.min(geo.volGeomTotal, bruto));
+
+    if (cfg.hCone > 0 && bruto <= geo.volConeFull) {
+        const frac = geo.volConeFull > 0 ? bruto / geo.volConeFull : 0;
+        return cfg.hCone * Math.cbrt(frac);
+    }
+
+    const areaBase = Math.PI * cfg.raio * cfg.raio;
+    if (areaBase <= 0) return cfg.hCone;
+
+    return cfg.hCone + (bruto - geo.volConeFull) / areaBase;
+}
+
+
+/* Cada família de silos (1-2, 3-4, 5-6) tem sua própria função de
+   cálculo/total — essa dispatcher chama a certa conforme o silo. */
+function calcularPorFamilia(n) {
+    if (n === 1 || n === 2) calcular();
+    else if (n === 3 || n === 4) calcularPulmao();
+    else if (n === 5 || n === 6) calcularVisco();
+}
+
+
+/* =========================================================
+   TROCA DE MODO
+========================================================= */
+
+function setMode(n, modo) {
+
+    modoAtual[n] = modo;
+
+    const tabs = document.querySelectorAll('.mode-tabs[data-silo="' + n + '"] .tab');
+    tabs.forEach(t => t.classList.toggle("active", t.dataset.mode === modo));
+
+    const cfg = getConfig(n);
+    const geo = getGeometry(cfg);
+
+    const label = document.getElementById("inputLabel" + n);
+    const unit = document.getElementById("unit" + n);
+    const input = document.getElementById("valor" + n);
+    const subtoggle = document.getElementById("pctSubtoggle" + n);
+
+    if (modo === "altura") {
+        if (subtoggle) subtoggle.style.display = "none";
+        label.textContent = "Altura vazia (medida do topo)";
+        unit.textContent = "m";
+        input.max = geo.hTotal.toFixed(2);
+    } else {
+        unit.textContent = "%";
+        input.max = "100";
+        if (subtoggle) {
+            subtoggle.style.display = "flex";
+            atualizarLabelPercentual(n);
+        } else {
+            /* silos sem IHM real (pulmão/Viscotech): só percentual da capacidade total */
+            label.textContent = "Percentual da capacidade total";
+        }
+    }
+
+    input.value = "";
+    calcularPorFamilia(n);
+}
+
+
+/* =========================================================
+   SUB-TIPO DE PERCENTUAL (IHM x CAPACIDADE TOTAL)
+========================================================= */
+
+function setPctTipo(n, tipo) {
+
+    pctTipo[n] = tipo;
+
+    const subtabs = document.querySelectorAll('#pctSubtoggle' + n + ' .subtab');
+    subtabs.forEach(t => t.classList.toggle("active", t.dataset.tipo === tipo));
+
+    atualizarLabelPercentual(n);
+    calcularPorFamilia(n);
+}
+
+function atualizarLabelPercentual(n) {
+    const label = document.getElementById("inputLabel" + n);
+
+    label.textContent = pctTipo[n] === "ihm"
+        ? "Percentual do IHM (0% = cone cheio)"
+        : "Percentual da capacidade total (0% = vazio)";
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+function statusInfo(percentual) {
+    if (percentual <= 0) return { texto: "Vazio", classe: "st-vazio" };
+    if (percentual < 30) return { texto: "Baixo", classe: "st-baixo" };
+    if (percentual < 80) return { texto: "Normal", classe: "st-normal" };
+    if (percentual < 100) return { texto: "Alto", classe: "st-alto" };
+    return { texto: "Cheio", classe: "st-cheio" };
+}
+
+/*
+   Degradê contínuo verde (vazio) -> vermelho (cheio),
+   passando por amarelo/laranja no meio.
+*/
+function corProduto(percentual) {
+    const p = Math.max(0, Math.min(100, percentual));
+    const matiz = 142 - (142 * p / 100);
+
+    return "linear-gradient(to right, hsl(" + matiz + ",72%,32%), hsl(" + matiz + ",78%,48%), hsl(" + matiz + ",85%,64%))";
+}
+
+
+/* =========================================================
+   PROPORÇÕES REAIS DOS DESENHOS
+
+   Todos os silos (flake e resina) usam a mesma escala px/metro,
+   então a diferença de tamanho entre desenhos reflete a diferença
+   real de altura/diâmetro entre os silos — não é só decoração.
+========================================================= */
+
+const ESCALA_PXM = 27;       // px por metro — MESMA escala pra largura e altura,
+                              // senão a proporção real do silo fica distorcida
+const ALTURA_MIN_PX = 6;
+const LARGURA_MIN_PX = 30;
+const MARGEM_TOPO_PX = 10;   // topo/anel ficam um pouco mais largos que o corpo
+const SAIDA_RAIO = 0.1016;   // saída medida (resina): 8 polegadas de diâmetro ÷ 2, em metros
+const SAIDA_RAIO_FLAKE = 0.25; // saída medida (flake): 500 mm de diâmetro ÷ 2, em metros
+const ESCALA_PXM_PEQUENOS = 60; // escala maior só pros silos pequenos (pulmão/Viscotech),
+                                 // que nunca aparecem lado a lado com os silos grandes
+
+function pxAltura(metros, escala) {
+    return Math.max(ALTURA_MIN_PX, metros * (escala || ESCALA_PXM));
+}
+
+function pxLargura(raio, escala) {
+    return Math.max(LARGURA_MIN_PX, raio * 2 * (escala || ESCALA_PXM));
+}
+
+function ajustarProporcoesPET(n, cfg) {
+    const ehPequeno = (n === 3 || n === 4 || n === 5 || n === 6);
+    const escala = ehPequeno ? ESCALA_PXM_PEQUENOS : ESCALA_PXM;
+
+    const wBody = pxLargura(cfg.raio, escala);
+    const wOuter = wBody + MARGEM_TOPO_PX;
+
+    document.getElementById("silostruct" + n).style.width = wOuter + "px";
+    document.getElementById("silotop" + n).style.width = wOuter + "px";
+    document.getElementById("siloring" + n).style.width = wOuter + "px";
+
+    const body = document.getElementById("silobody" + n);
+    body.style.width = wBody + "px";
+    body.style.height = pxAltura(cfg.hCyl, escala) + "px";
+
+    const cone = document.getElementById("silocone" + n);
+    cone.style.width = wBody + "px";
+    cone.style.height = pxAltura(cfg.hCone, escala) + "px";
+
+    /* Bico do cone com a largura real da saída, em vez do formato
+       genérico fixo (16% de largura) usado por padrão. Flake (1,2)
+       tem 500 mm de saída; os demais (pulmão, Viscotech) têm 8". */
+    const saidaRaio = (n === 1 || n === 2) ? SAIDA_RAIO_FLAKE : SAIDA_RAIO;
+    const outletRatio = cfg.raio > 0 ? saidaRaio / cfg.raio : 0;
+    const o1 = 50 - outletRatio * 50, o2 = 50 + outletRatio * 50;
+    const [botL, botR] = insetEdge(o1, o2, PAREDE_FRAC);
+    const [topL, topR] = insetEdge(0, 100, PAREDE_FRAC);
+
+    cone.style.clipPath = polyTrapezio(0, 100, o1, o2);
+    document.getElementById("coneProduct" + n).style.clipPath = polyTrapezio(topL, topR, botL, botR);
+
+    document.getElementById("dimLabelCyl" + n).textContent = "Cilindro " + fmt(cfg.hCyl, 2) + " m";
+    document.getElementById("dimLabelCone" + n).textContent = "Cone " + fmt(cfg.hCone, 2) + " m";
+
+    posicionarDimLabels("dragZone" + n);
+}
+
+
+/* =========================================================
+   ATUALIZA UM SILO
+========================================================= */
+
+function atualizarSilo(n) {
+
+    const cfg = getConfig(n);
+    const geo = getGeometry(cfg);
+    const modo = modoAtual[n];
+
+    ajustarProporcoesPET(n, cfg);
+
+    let valor = parseFloat(document.getElementById("valor" + n).value);
+    if (isNaN(valor) || valor < 0) valor = 0;
+
+    let volume = 0;
+    let percentual = 0;
+
+    if (modo === "altura") {
+        if (valor > geo.hTotal) valor = geo.hTotal;
+        const hMaterial = geo.hTotal - valor;
+        volume = volumeFromHeight(hMaterial, cfg, geo);
+        percentual = cfg.capNominal > 0 ? (volume / cfg.capNominal) * 100 : 0;
+    } else if (pctTipo[n] === "ihm") {
+        /*
+           Percentual do IHM: 0% = cone já cheio / cilindro vazio,
+           100% = cilindro cheio (silo totalmente cheio).
+           O cone não entra na escala 0-100 do instrumento real.
+        */
+        if (valor > 100) valor = 100;
+        const volConeCal = geo.volConeFull * geo.fator;
+        const volCylCal = geo.volCilFull * geo.fator;
+        volume = volConeCal + (valor / 100) * volCylCal;
+        percentual = cfg.capNominal > 0 ? (volume / cfg.capNominal) * 100 : 0;
+    } else {
+        /*
+           Percentual da capacidade total: 0% = silo totalmente vazio,
+           100% = 161 m³ (cone + cilindro cheios).
+        */
+        if (valor > 100) valor = 100;
+        percentual = valor;
+        volume = (percentual / 100) * cfg.capNominal;
+    }
+
+    percentual = Math.max(0, Math.min(100, percentual));
+    volume = Math.max(0, volume);
+
+    const massaKg = volume * cfg.densidade;
+    const massaT = massaKg / 1000;
+
+    /* Visual do silo — baseado na altura real do material, não no percentual total */
+    const hMaterial = heightFromVolume(volume, cfg, geo);
+    const cyFrac = cfg.hCyl > 0 ? Math.max(0, Math.min(1, (hMaterial - cfg.hCone) / cfg.hCyl)) : 0;
+    const coneFrac = cfg.hCone > 0 ? Math.max(0, Math.min(1, hMaterial / cfg.hCone)) : (hMaterial > 0 ? 1 : 0);
+
+    document.getElementById("fill" + n).style.height = (cyFrac * 100) + "%";
+    document.getElementById("percent" + n).textContent = percentual.toFixed(0) + "%";
+    document.getElementById("capnomLabel" + n).textContent = fmt(cfg.capNominal, 0);
+
+    const cor = corProduto(percentual);
+    document.getElementById("fill" + n).style.background = cor;
+
+    const cone = document.getElementById("coneProduct" + n);
+    if (coneFrac > 0) {
+        const maskStop = (coneFrac * 100) + "%";
+        const maskCss = "linear-gradient(to top, black 0%, black " + maskStop + ", transparent " + maskStop + ", transparent 100%)";
+        cone.style.webkitMaskImage = maskCss;
+        cone.style.maskImage = maskCss;
+        cone.style.opacity = "0.95";
+        cone.style.background = cor;
+    } else {
+        cone.style.opacity = "0";
+    }
+
+    /* Status */
+    const st = statusInfo(percentual);
+    const statusEl = document.getElementById("status" + n);
+    statusEl.textContent = st.texto;
+    statusEl.className = "status " + st.classe;
+
+    /* Resultados */
+    document.getElementById("percentResult" + n).textContent = fmt(percentual, 1);
+    document.getElementById("volResult" + n).textContent = fmt(volume, 1);
+    document.getElementById("result" + n).textContent = fmt(massaT, 1);
+    document.getElementById("kgResult" + n).textContent = fmt(massaKg, 0) + " kg";
+
+    /* Informação de calibração — só a capacidade de placa, sem nenhum
+       comparativo derivado da geometria (raio/área) */
+    document.getElementById("calibInfo" + n).innerHTML =
+        "Volume geométrico total (cilindro + cone): <b>" + fmt(cfg.capNominal, 2) + " m³</b>";
+
+    /* Atualiza tabela se estiver aberta */
+    const wrapper = document.getElementById("tableWrapper" + n);
+    if (wrapper.style.display !== "none") {
+        gerarTabela(n, cfg, geo);
+    }
+
+    return massaKg;
+}
+
+
+/* =========================================================
+   TABELA DE REFERÊNCIA
+========================================================= */
+
+function toggleTable(n) {
+    const wrapper = document.getElementById("tableWrapper" + n);
+    const btn = document.getElementById("tableBtn" + n);
+    const abrir = wrapper.style.display === "none";
+
+    wrapper.style.display = abrir ? "block" : "none";
+    btn.textContent = abrir
+        ? "Ocultar tabela de referência"
+        : "Ver tabela de referência (0,5 em 0,5 m)";
+
+    if (abrir) {
+        const cfg = getConfig(n);
+        const geo = getGeometry(cfg);
+        gerarTabela(n, cfg, geo);
+    }
+}
+
+function gerarTabela(n, cfg, geo) {
+
+    let linhas = "";
+    const passo = 0.5;
+
+    for (let av = 0; av <= geo.hTotal + 1e-9; av += passo) {
+
+        const alturaVazia = Math.min(av, geo.hTotal);
+        const hMaterial = geo.hTotal - alturaVazia;
+        const volume = volumeFromHeight(hMaterial, cfg, geo);
+        const percentual = cfg.capNominal > 0 ? Math.min(100, (volume / cfg.capNominal) * 100) : 0;
+        const massaKg = volume * cfg.densidade;
+
+        linhas += "<tr>" +
+            "<td>" + fmt(alturaVazia, 2) + " m</td>" +
+            "<td>" + fmt(percentual, 1) + "%</td>" +
+            "<td>" + fmt(volume, 2) + " m³</td>" +
+            "<td>" + fmt(massaKg, 0) + " kg</td>" +
+            "<td>" + fmt(massaKg / 1000, 2) + " T</td>" +
+            "</tr>";
+
+        if (alturaVazia >= geo.hTotal) break;
+    }
+
+    document.getElementById("table" + n).innerHTML =
+        "<thead><tr>" +
+        "<th>Altura vazia</th><th>Ocupação</th><th>Volume</th><th>Massa</th><th>Toneladas</th>" +
+        "</tr></thead><tbody>" + linhas + "</tbody>";
+}
+
+
+/* =========================================================
+   CÁLCULO GERAL
+========================================================= */
+
+function calcular() {
+
+    const massa1 = atualizarSilo(1);
+    const massa2 = atualizarSilo(2);
+    const totalKg = massa1 + massa2;
+
+    document.getElementById("total").textContent = fmt(totalKg / 1000, 1) + " T";
+    document.getElementById("totalKg").textContent = fmt(totalKg, 0) + " kg";
+}
+
+function calcularPulmao() {
+
+    const massa3 = atualizarSilo(3);
+    const massa4 = atualizarSilo(4);
+    const totalKg = massa3 + massa4;
+
+    document.getElementById("totalPulmao").textContent = fmt(totalKg / 1000, 1) + " T";
+    document.getElementById("totalPulmaoKg").textContent = fmt(totalKg, 0) + " kg";
+}
+
+function calcularVisco() {
+
+    const massa5 = atualizarSilo(5);
+    const massa6 = atualizarSilo(6);
+    const totalKg = massa5 + massa6;
+
+    document.getElementById("totalVisco").textContent = fmt(totalKg / 1000, 1) + " T";
+    document.getElementById("totalViscoKg").textContent = fmt(totalKg, 0) + " kg";
+}
+
+
+/* =========================================================
+   ARRASTAR NO DESENHO PARA DEFINIR O NÍVEL
+========================================================= */
+
+/*
+   Mapeia a posição do mouse/dedo para a altura real do material,
+   usando os pixels de verdade do cilindro e do cone desenhados
+   (não uma fração linear da zona toda) — assim o que se vê bate
+   exatamente com o que se arrasta.
+*/
+function handleDrag(n, clientY) {
+
+    const cilindro = document.querySelector('#dragZone' + n + ' .silo-body');
+    const cone = document.querySelector('#dragZone' + n + ' .silo-cone');
+
+    const rectCil = cilindro.getBoundingClientRect();
+    const rectCone = cone.getBoundingClientRect();
+
+    const cfg = getConfig(n);
+    const geo = getGeometry(cfg);
+
+    let hMaterial;
+
+    if (clientY <= rectCil.bottom) {
+        /* dentro (ou acima) do cilindro */
+        const relY = Math.max(0, Math.min(rectCil.height, clientY - rectCil.top));
+        const fracCil = 1 - (relY / rectCil.height);
+        hMaterial = cfg.hCone + fracCil * cfg.hCyl;
+    } else {
+        /* dentro (ou abaixo) do cone */
+        const relY = Math.max(0, Math.min(rectCone.height, clientY - rectCone.top));
+        const fracCone = 1 - (relY / rectCone.height);
+        hMaterial = Math.max(0, fracCone) * cfg.hCone;
+    }
+
+    hMaterial = Math.max(0, Math.min(geo.hTotal, hMaterial));
+    const volume = volumeFromHeight(hMaterial, cfg, geo);
+
+    aplicarValorArrastado(n, cfg, geo, hMaterial, volume);
+}
+
+function aplicarValorArrastado(n, cfg, geo, hMaterial, volume) {
+
+    const modo = modoAtual[n];
+    const input = document.getElementById("valor" + n);
+    const percentualTotal = cfg.capNominal > 0 ? Math.max(0, Math.min(100, (volume / cfg.capNominal) * 100)) : 0;
+
+    if (modo === "altura") {
+        const alturaVazia = Math.max(0, Math.min(geo.hTotal, geo.hTotal - hMaterial));
+        input.value = alturaVazia.toFixed(2);
+    } else if (pctTipo[n] === "total") {
+        input.value = percentualTotal.toFixed(1);
+    } else {
+        const volConeCal = geo.volConeFull * geo.fator;
+        const volCylCal = geo.volCilFull * geo.fator;
+        const pctIhm = volCylCal > 0 ? Math.max(0, Math.min(100, ((volume - volConeCal) / volCylCal) * 100)) : 0;
+        input.value = pctIhm.toFixed(1);
+    }
+
+    calcularPorFamilia(n);
+}
+
+function attachDrag(n) {
+
+    const zone = document.getElementById("dragZone" + n);
+    let arrastando = false;
+    let frame = null;
+
+    function agendar(clientY) {
+        if (frame) return;
+        frame = requestAnimationFrame(function () {
+            frame = null;
+            handleDrag(n, clientY);
+        });
+    }
+
+    zone.addEventListener("pointerdown", function (e) {
+        arrastando = true;
+        zone.classList.add("dragging");
+        zone.setPointerCapture(e.pointerId);
+        handleDrag(n, e.clientY);
+    });
+
+    zone.addEventListener("pointermove", function (e) {
+        if (!arrastando) return;
+        agendar(e.clientY);
+    });
+
+    function soltar(e) {
+        arrastando = false;
+        zone.classList.remove("dragging");
+        if (frame) { cancelAnimationFrame(frame); frame = null; }
+        try { zone.releasePointerCapture(e.pointerId); } catch (err) {}
+    }
+
+    zone.addEventListener("pointerup", soltar);
+    zone.addEventListener("pointercancel", soltar);
+}
+
+
+/* =========================================================
+   TROCA DE ABA PRINCIPAL (PET / RESINA)
+========================================================= */
+
+function showTab(tab) {
+    document.getElementById("tabPet").classList.toggle("active", tab === "pet");
+    document.getElementById("tabResina").classList.toggle("active", tab === "resina");
+    document.getElementById("tabPulmao").classList.toggle("active", tab === "pulmao");
+    document.getElementById("tabVisco").classList.toggle("active", tab === "visco");
+    document.getElementById("tabQualidade").classList.toggle("active", tab === "qualidade");
+    document.querySelectorAll(".main-tabs .maintab").forEach(function (b) {
+        b.classList.toggle("active", b.dataset.tab === tab);
+    });
+
+    /* getBoundingClientRect só é confiável com o painel visível (display:block) */
+    if (tab === "resina") {
+        ["1A", "2A", "1B", "2B"].forEach(function (id) { posicionarDimLabels("dragZoneR" + id); });
+    } else if (tab === "qualidade") {
+        ["SSPA", "SSPB", "VISCOQ"].forEach(function (id) { posicionarDimLabels("dragZoneR" + id); });
+    } else if (tab === "pet") {
+        [1, 2].forEach(function (n) { posicionarDimLabels("dragZone" + n); });
+    } else if (tab === "pulmao") {
+        [3, 4].forEach(function (n) { posicionarDimLabels("dragZone" + n); });
+    } else if (tab === "visco") {
+        [5, 6].forEach(function (n) { posicionarDimLabels("dragZone" + n); });
+    }
+}
+
+const resinSilos = { "1A": "blender", "2A": "normal", "1B": "normal", "2B": "blender", "SSPA": "blender", "SSPB": "blender", "VISCOQ": "normal" };
+const modoAtualR = { "1A": "altura", "2A": "altura", "1B": "altura", "2B": "altura", "SSPA": "altura", "SSPB": "altura", "VISCOQ": "altura" };
+const pctTipoR = { "1A": "ihm", "2A": "ihm", "1B": "ihm", "2B": "ihm", "SSPA": "ihm", "SSPB": "ihm", "VISCOQ": "ihm" };
+
+function getConfigR(id) {
+    const tipo = resinSilos[id];
+    const raio = parseFloat(document.getElementById("raioR" + id).value) || 0;
+    const densidade = parseFloat(document.getElementById("densR" + id).value) || 0;
+    const hCyl = parseFloat(document.getElementById("hcylR" + id).value) || 0;
+    const hCone1 = parseFloat(document.getElementById("hcone1R" + id).value) || 0;
+
+    if (tipo === "blender") {
+        const hCylMid = parseFloat(document.getElementById("hcylmidR" + id).value) || 0;
+        const hCone2 = parseFloat(document.getElementById("hcone2R" + id).value) || 0;
+        const rMid = parseFloat(document.getElementById("rmidR" + id).value) || 0;
+        return { tipo: tipo, raio: raio, densidade: densidade, hCyl: hCyl, hCone1: hCone1, hCylMid: hCylMid, hCone2: hCone2, rMid: rMid };
+    }
+
+    return { tipo: tipo, raio: raio, densidade: densidade, hCyl: hCyl, hCone1: hCone1 };
+}
+
+/* Segmentos de baixo para cima — usados no cálculo de volume/altura.
+   Cada segmento: { rBottom, rTop, h } — um tronco de cone genérico. */
+function buildSegmentsR(cfg) {
+    if (cfg.tipo === "blender") {
+        return [
+            { rBottom: 0, rTop: cfg.rMid, h: cfg.hCone2 },
+            { rBottom: cfg.rMid, rTop: cfg.rMid, h: cfg.hCylMid },
+            { rBottom: cfg.rMid, rTop: cfg.raio, h: cfg.hCone1 },
+            { rBottom: cfg.raio, rTop: cfg.raio, h: cfg.hCyl }
+        ];
+    }
+    return [
+        { rBottom: 0, rTop: cfg.raio, h: cfg.hCone1 },
+        { rBottom: cfg.raio, rTop: cfg.raio, h: cfg.hCyl }
+    ];
+}
+
+/* Volume de um tronco de cone completo: (pi h/3)(R1²+R1 R2+R2²).
+   Cobre cone cheio (R1=0) e cilindro (R1=R2) como casos particulares. */
+function segFullVolR(seg) {
+    return (Math.PI * seg.h / 3) * (seg.rBottom * seg.rBottom + seg.rBottom * seg.rTop + seg.rTop * seg.rTop);
+}
+
+/* Volume do segmento do seu próprio fundo (rBottom) até hLocal (0..h) */
+function segPartialVolR(seg, hLocal) {
+    if (seg.h <= 0) return 0;
+    const k = (seg.rTop - seg.rBottom) / seg.h;
+    const r0 = seg.rBottom;
+    return Math.PI * (r0 * r0 * hLocal + r0 * k * hLocal * hLocal + (k * k * hLocal * hLocal * hLocal) / 3);
+}
+
+/* Inverso de segPartialVolR: dado um volume parcial, devolve hLocal.
+   Cilindro e cone cheio têm forma fechada; o tronco geral genérico
+   é resolvido por Newton (a função é monótona e suave em h). */
+function segHeightFromVolR(seg, vol) {
+    if (seg.h <= 0) return 0;
+
+    const full = segFullVolR(seg);
+    vol = Math.max(0, Math.min(full, vol));
+
+    const k = (seg.rTop - seg.rBottom) / seg.h;
+    const r0 = seg.rBottom;
+
+    if (Math.abs(k) < 1e-9) {
+        return r0 > 0 ? vol / (Math.PI * r0 * r0) : 0;
+    }
+    if (r0 < 1e-9) {
+        return full > 0 ? seg.h * Math.cbrt(vol / full) : 0;
+    }
+
+    let h = seg.h * 0.5;
+    for (let i = 0; i < 40; i++) {
+        const f = segPartialVolR(seg, h) - vol;
+        const rAtH = r0 + k * h;
+        const fPrime = Math.PI * rAtH * rAtH;
+        if (Math.abs(fPrime) < 1e-12) break;
+        const hNew = Math.max(0, Math.min(seg.h, h - f / fPrime));
+        if (Math.abs(hNew - h) < 1e-9) { h = hNew; break; }
+        h = hNew;
+    }
+    return h;
+}
+
+/*
+   Capacidade = volume geométrico puro (raio/alturas medidos), sem
+   calibração por placa — mesmo princípio usado nos silos de flake.
+*/
+function getGeometryR(cfg) {
+    const segments = buildSegmentsR(cfg);
+    let hTotal = 0, volGeomTotal = 0;
+    segments.forEach(function (seg) {
+        hTotal += seg.h;
+        volGeomTotal += segFullVolR(seg);
+    });
+
+    return { segments: segments, hTotal: hTotal, volGeomTotal: volGeomTotal, volTotal: volGeomTotal, fator: 1 };
+}
+
+/* h = altura de material a partir do FUNDO do silo (volume calibrado, já em capNominal) */
+function volumeFromHeightR(hMaterial, cfg, geo) {
+    let h = Math.max(0, Math.min(geo.hTotal, hMaterial));
+    let acc = 0;
+
+    for (let i = 0; i < geo.segments.length; i++) {
+        const seg = geo.segments[i];
+        if (h <= 0) break;
+
+        if (h >= seg.h) {
+            acc += segFullVolR(seg);
+            h -= seg.h;
+        } else {
+            acc += segPartialVolR(seg, h);
+            h = 0;
+        }
+    }
+    acc *= geo.fator;
+
+    return acc;
+}
+
+function heightFromVolumeR(volume, cfg, geo) {
+    let v = Math.max(0, Math.min(geo.volTotal, volume));
+    v = geo.fator > 0 ? v / geo.fator : 0; /* volta ao volume "bruto" (forma real) */
+    let hAcc = 0;
+
+    for (let i = 0; i < geo.segments.length; i++) {
+        const seg = geo.segments[i];
+        const full = segFullVolR(seg);
+
+        if (v >= full) {
+            hAcc += seg.h;
+            v -= full;
+        } else {
+            hAcc += segHeightFromVolR(seg, v);
+            v = 0;
+        }
+    }
+
+    return hAcc;
+}
+
+/* Elementos visuais (topo -> base), para mapear o arraste do mouse */
+function getVisualSegmentsR(id, cfg) {
+    if (cfg.tipo === "blender") {
+        return [
+            { el: "bodyTopR" + id, real: cfg.hCyl },
+            { el: "cone1R" + id, real: cfg.hCone1 },
+            { el: "bodyMidR" + id, real: cfg.hCylMid },
+            { el: "cone2R" + id, real: cfg.hCone2 }
+        ];
+    }
+    return [
+        { el: "bodyTopR" + id, real: cfg.hCyl },
+        { el: "cone1R" + id, real: cfg.hCone1 }
+    ];
+}
+
+/* Elementos de preenchimento (base -> topo), na mesma ordem de geo.segments */
+function domSegmentsR(id, cfg) {
+    /* só usada pro tipo "normal" — o blender usa o funil único
+       (ver bloco cfg.tipo === "blender" em atualizarSiloR) */
+    return [
+        { kind: "cone", fillId: "coneProduct1R" + id },
+        { kind: "cyl", fillId: "fillTopR" + id }
+    ];
+}
+
+
+/* Silos de qualidade (SSPA/SSPB/VISCOQ) têm total próprio, separado
+   da aba Resina — essa dispatcher chama a função certa conforme o id. */
+function calcularRPorFamilia(id) {
+    if (id === "SSPA" || id === "SSPB" || id === "VISCOQ") calcularQualidade();
+    else calcularResina();
+}
+
+
+/* =========================================================
+   TROCA DE MODO (SILOS DE RESINA)
+========================================================= */
+
+function setModeR(id, modo) {
+    modoAtualR[id] = modo;
+
+    const tabs = document.querySelectorAll('.mode-tabs[data-silor="' + id + '"] .tab');
+    tabs.forEach(function (t) { t.classList.toggle("active", t.dataset.mode === modo); });
+
+    const cfg = getConfigR(id);
+    const geo = getGeometryR(cfg);
+
+    const label = document.getElementById("inputLabelR" + id);
+    const unit = document.getElementById("unitR" + id);
+    const input = document.getElementById("valorR" + id);
+    const subtoggle = document.getElementById("pctSubtoggleR" + id);
+
+    if (modo === "altura") {
+        subtoggle.style.display = "none";
+        label.textContent = "Altura vazia (medida do topo)";
+        unit.textContent = "m";
+        input.max = geo.hTotal.toFixed(2);
+    } else {
+        subtoggle.style.display = "flex";
+        unit.textContent = "%";
+        input.max = "100";
+        atualizarLabelPercentualR(id);
+    }
+
+    input.value = "";
+    calcularRPorFamilia(id);
+}
+
+
+/* =========================================================
+   SUB-TIPO DE PERCENTUAL (RESINA): IHM x CAPACIDADE TOTAL
+========================================================= */
+
+function setPctTipoR(id, tipo) {
+    pctTipoR[id] = tipo;
+
+    const subtabs = document.querySelectorAll('#pctSubtoggleR' + id + ' .subtab');
+    subtabs.forEach(function (t) { t.classList.toggle("active", t.dataset.tipo === tipo); });
+
+    atualizarLabelPercentualR(id);
+    calcularRPorFamilia(id);
+}
+
+function atualizarLabelPercentualR(id) {
+    const label = document.getElementById("inputLabelR" + id);
+    const abaixoTexto = resinSilos[id] === "blender" ? "cones cheios" : "cone cheio";
+
+    label.textContent = pctTipoR[id] === "ihm"
+        ? "Percentual do IHM (0% = " + abaixoTexto + ")"
+        : "Percentual da capacidade total (0% = vazio)";
+}
+
+
+/* =========================================================
+   ATUALIZA UM SILO DE RESINA
+========================================================= */
+
+function ajustarProporcoesR(id, cfg) {
+    const wBody = pxLargura(cfg.raio);
+    const wOuter = wBody + MARGEM_TOPO_PX;
+
+    document.getElementById("silostructR" + id).style.width = wOuter + "px";
+    document.getElementById("silotopR" + id).style.width = wOuter + "px";
+    document.getElementById("ringTopR" + id).style.width = wOuter + "px";
+
+    const bodyTop = document.getElementById("bodyTopR" + id);
+    bodyTop.style.width = wBody + "px";
+    bodyTop.style.height = pxAltura(cfg.hCyl) + "px";
+    rotularSegmentoR(id, "bodyTopR" + id, "Cilindro " + fmt(cfg.hCyl, 2) + " m");
+
+    if (cfg.tipo === "blender") {
+        /* cone1/bodyMid/cone2 aqui são só marcadores invisíveis (altura
+           real, sem forma própria) — o desenho é um funil único,
+           montado em atualizarFormaBlender */
+        document.getElementById("funilR" + id).style.width = wBody + "px";
+        document.getElementById("cone1R" + id).style.height = pxAltura(cfg.hCone1) + "px";
+        document.getElementById("bodyMidR" + id).style.height = pxAltura(cfg.hCylMid) + "px";
+        document.getElementById("cone2R" + id).style.height = pxAltura(cfg.hCone2) + "px";
+
+        rotularSegmentoR(id, "cone1R" + id, "Cone " + fmt(cfg.hCone1, 2) + " m");
+        rotularSegmentoR(id, "bodyMidR" + id, "Cilindro " + fmt(cfg.hCylMid, 2) + " m ");
+        rotularSegmentoR(id, "cone2R" + id, "Cone " + fmt(cfg.hCone2, 2) + " m");
+    } else {
+        const cone1 = document.getElementById("cone1R" + id);
+        cone1.style.width = wBody + "px";
+        cone1.style.height = pxAltura(cfg.hCone1) + "px";
+
+        /* Bico do cone com a largura real da saída (8"), em vez do
+           formato genérico fixo (16% de largura) usado por padrão. */
+        const outletRatio = cfg.raio > 0 ? SAIDA_RAIO / cfg.raio : 0;
+        const o1 = 50 - outletRatio * 50, o2 = 50 + outletRatio * 50;
+        const [botL, botR] = insetEdge(o1, o2, PAREDE_FRAC);
+
+        cone1.style.clipPath = polyTrapezio(0, 100, o1, o2);
+        const coneProduct1 = document.getElementById("coneProduct1R" + id);
+        const [topL, topR] = insetEdge(0, 100, PAREDE_FRAC);
+        coneProduct1.style.clipPath = polyTrapezio(topL, topR, botL, botR);
+
+        rotularSegmentoR(id, "cone1R" + id, "Cone " + fmt(cfg.hCone1, 2) + " m");
+    }
+
+    return wBody;
+}
+
+function rotularSegmentoR(id, segId, texto) {
+    const label = document.querySelector('#dragZoneR' + id + ' .dim-label[data-for="' + segId + '"]');
+    if (label) label.textContent = texto;
+}
+
+
+function atualizarSiloR(id) {
+
+    const cfg = getConfigR(id);
+    const geo = getGeometryR(cfg);
+    const modo = modoAtualR[id];
+
+    const wBody = ajustarProporcoesR(id, cfg);
+    if (cfg.tipo === "blender") atualizarFormaBlender(id, cfg, wBody);
+
+    let valor = parseFloat(document.getElementById("valorR" + id).value);
+    if (isNaN(valor) || valor < 0) valor = 0;
+
+    let volume = 0, percentual = 0;
+
+    if (modo === "altura") {
+        if (valor > geo.hTotal) valor = geo.hTotal;
+        const hMaterial = geo.hTotal - valor;
+        volume = volumeFromHeightR(hMaterial, cfg, geo);
+        percentual = geo.volTotal > 0 ? (volume / geo.volTotal) * 100 : 0;
+    } else if (pctTipoR[id] === "ihm") {
+        /*
+           Percentual do IHM: 0% = tudo abaixo do cilindro principal já
+           cheio (cone, ou cone+câmara+cone no blender), 100% = cilindro
+           principal também cheio. O(s) cone(s) não entram na escala 0-100.
+        */
+        if (valor > 100) valor = 100;
+        const segs = geo.segments;
+        const volCylRaw = segFullVolR(segs[segs.length - 1]);
+        const volBelowRaw = geo.volGeomTotal - volCylRaw;
+        const volBelowCal = volBelowRaw * geo.fator;
+        const volCylCal = volCylRaw * geo.fator;
+        volume = volBelowCal + (valor / 100) * volCylCal;
+        percentual = geo.volTotal > 0 ? (volume / geo.volTotal) * 100 : 0;
+    } else {
+        if (valor > 100) valor = 100;
+        percentual = valor;
+        volume = (percentual / 100) * geo.volTotal;
+    }
+
+    percentual = Math.max(0, Math.min(100, percentual));
+    volume = Math.max(0, volume);
+
+    const massaKg = volume * cfg.densidade;
+    const massaT = massaKg / 1000;
+
+    const hMaterial = heightFromVolumeR(volume, cfg, geo);
+    const cor = corProduto(percentual);
+
+    if (cfg.tipo === "blender") {
+        /* funil único (cone + câmara + cone): uma fração só, medida
+           a partir do fundo do silo, sem depender de segmentos separados */
+        const zona = cfg.hCone2 + cfg.hCylMid + cfg.hCone1;
+        const fracFunil = zona > 0 ? Math.max(0, Math.min(1, hMaterial / zona)) : 0;
+        const fracCyl = cfg.hCyl > 0 ? Math.max(0, Math.min(1, (hMaterial - zona) / cfg.hCyl)) : 0;
+
+        const produto = document.getElementById("funilProdutoR" + id);
+        const maskStop = (fracFunil * 100) + "%";
+        const maskCss = "linear-gradient(to top, black 0%, black " + maskStop + ", transparent " + maskStop + ", transparent 100%)";
+        produto.style.webkitMaskImage = maskCss;
+        produto.style.maskImage = maskCss;
+        produto.style.opacity = fracFunil > 0 ? "0.95" : "0";
+        produto.style.background = cor;
+
+        const fillTop = document.getElementById("fillTopR" + id);
+        fillTop.style.height = (fracCyl * 100) + "%";
+        fillTop.style.background = cor;
+    } else {
+        let baseCum = 0;
+        const fracs = [];
+        geo.segments.forEach(function (seg) {
+            const localH = Math.max(0, Math.min(seg.h, hMaterial - baseCum));
+            fracs.push(seg.h > 0 ? localH / seg.h : 0);
+            baseCum += seg.h;
+        });
+
+        const dom = domSegmentsR(id, cfg);
+
+        dom.forEach(function (d, i) {
+            const el = document.getElementById(d.fillId);
+            if (d.kind === "cyl") {
+                el.style.height = (fracs[i] * 100) + "%";
+                el.style.background = cor;
+            } else {
+                const maskStop = (fracs[i] * 100) + "%";
+                const maskCss = "linear-gradient(to top, black 0%, black " + maskStop + ", transparent " + maskStop + ", transparent 100%)";
+                el.style.webkitMaskImage = maskCss;
+                el.style.maskImage = maskCss;
+                el.style.opacity = fracs[i] > 0 ? "0.95" : "0";
+                el.style.background = cor;
+            }
+        });
+    }
+
+    document.getElementById("percentR" + id).textContent = percentual.toFixed(0) + "%";
+    document.getElementById("capLabelR" + id).textContent = fmt(geo.volTotal, 1);
+
+    const st = statusInfo(percentual);
+    const statusEl = document.getElementById("statusR" + id);
+    statusEl.textContent = st.texto;
+    statusEl.className = "status " + st.classe;
+
+    document.getElementById("percentResultR" + id).textContent = fmt(percentual, 1);
+    document.getElementById("volResultR" + id).textContent = fmt(volume, 1);
+    document.getElementById("resultR" + id).textContent = fmt(massaT, 1);
+    document.getElementById("kgResultR" + id).textContent = fmt(massaKg, 0) + " kg";
+
+    document.getElementById("calibInfoR" + id).innerHTML = cfg.tipo === "blender"
+        ? "Volume geométrico total (cone + câmara + cone + cilindro): <b>" + fmt(geo.volTotal, 2) + " m³</b>"
+        : "Volume geométrico total (cilindro + cone): <b>" + fmt(geo.volTotal, 2) + " m³</b>";
+
+    posicionarDimLabels("dragZoneR" + id);
+
+    return massaKg;
+}
+
+/* =========================================================
+   FORMA VISUAL DO SILO BLENDER (depende da razão rMid/raio)
+========================================================= */
+
+/* Recuo proporcional (não em px fixos) para o preenchimento ficar
+   ligeiramente menor que a parede em CADA lado da forma — assim a
+   "borda" cinza visível tem sempre a mesma espessura relativa,
+   larga ou estreita que seja a seção naquele ponto (evita o efeito
+   fino-no-topo / grosso-na-base de um border comum sobre clip-path). */
+const PAREDE_FRAC = 5 / 160;
+
+function insetEdge(l, r, frac) {
+    const w = r - l;
+    return [l + w * frac, r - w * frac];
+}
+
+function polyTrapezio(topL, topR, botL, botR) {
+    /* afunila até 88% da altura, depois desce reto (aba plana) até
+       100% — sem isso, os últimos 12% do container ficam sem
+       parede/preenchimento (fundo transparente aparecendo como um
+       "buraco" entre o cone e o que vem abaixo dele) */
+    return "polygon(" + topL.toFixed(2) + "% 0%, " + topR.toFixed(2) + "% 0%, " +
+        botR.toFixed(2) + "% 88%, " + botR.toFixed(2) + "% 100%, " +
+        botL.toFixed(2) + "% 100%, " + botL.toFixed(2) + "% 88%)";
+}
+
+/*
+   Funil único (cone + câmara + cone), sem divisórias entre os trechos.
+   top/mid/bot = pares [esquerda%, direita%] de cada largura; p1/p2 =
+   altura% onde cada trecho termina; q3 = 88% do trecho final (mesma
+   aba plana usada no polyTrapezio, só que aplicada uma vez só, no fim).
+*/
+function polyFunil(top, mid, bot, p1, p2, q3) {
+    return "polygon(" +
+        top[0].toFixed(2) + "% 0%, " + top[1].toFixed(2) + "% 0%, " +
+        mid[1].toFixed(2) + "% " + p1.toFixed(2) + "%, " +
+        mid[1].toFixed(2) + "% " + p2.toFixed(2) + "%, " +
+        bot[1].toFixed(2) + "% " + q3.toFixed(2) + "%, " +
+        bot[1].toFixed(2) + "% 100%, " +
+        bot[0].toFixed(2) + "% 100%, " +
+        bot[0].toFixed(2) + "% " + q3.toFixed(2) + "%, " +
+        mid[0].toFixed(2) + "% " + p2.toFixed(2) + "%, " +
+        mid[0].toFixed(2) + "% " + p1.toFixed(2) + "%)";
+}
+
+function atualizarFormaBlender(id, cfg, wBody) {
+    const ratio = cfg.raio > 0 ? Math.max(0.05, Math.min(0.95, cfg.rMid / cfg.raio)) : 0.5;
+
+    /* Saída medida (8"), fixa — expressa como fração do raio principal,
+       já que a largura da caixa (wBody) representa o raio principal. */
+    const outletRatio = cfg.raio > 0 ? SAIDA_RAIO / cfg.raio : 0;
+
+    const x1 = 50 - ratio * 50, x2 = 50 + ratio * 50;
+    const o1 = 50 - outletRatio * 50, o2 = 50 + outletRatio * 50;
+
+    const zona = cfg.hCone1 + cfg.hCylMid + cfg.hCone2;
+    const p1 = zona > 0 ? (cfg.hCone1 / zona) * 100 : 0;
+    const p2 = zona > 0 ? ((cfg.hCone1 + cfg.hCylMid) / zona) * 100 : 0;
+    const q3 = p2 + (100 - p2) * 0.88;
+
+    const parede = document.getElementById("funilParedeR" + id);
+    const produto = document.getElementById("funilProdutoR" + id);
+
+    const top = insetEdge(0, 100, PAREDE_FRAC);
+    const mid = insetEdge(x1, x2, PAREDE_FRAC);
+    const bot = insetEdge(o1, o2, PAREDE_FRAC);
+
+    parede.style.clipPath = polyFunil([0, 100], [x1, x2], [o1, o2], p1, p2, q3);
+    produto.style.clipPath = polyFunil(top, mid, bot, p1, p2, q3);
+}
+
+
+/* =========================================================
+   CÁLCULO GERAL (RESINA)
+========================================================= */
+
+function calcularResina() {
+    const ids = ["1A", "2A", "1B", "2B"];
+    let totalKg = 0;
+    ids.forEach(function (id) { totalKg += atualizarSiloR(id); });
+
+    document.getElementById("totalResina").textContent = fmt(totalKg / 1000, 1) + " T";
+    document.getElementById("totalResinaKg").textContent = fmt(totalKg, 0) + " kg";
+}
+
+function calcularQualidade() {
+    const ids = ["SSPA", "SSPB", "VISCOQ"];
+    let totalKg = 0;
+    ids.forEach(function (id) { totalKg += atualizarSiloR(id); });
+
+    document.getElementById("totalQualidade").textContent = fmt(totalKg / 1000, 1) + " T";
+    document.getElementById("totalQualidadeKg").textContent = fmt(totalKg, 0) + " kg";
+}
+
+
+/* =========================================================
+   ARRASTAR NO DESENHO (SILOS DE RESINA)
+========================================================= */
+
+function handleDragR(id, clientY) {
+
+    const cfg = getConfigR(id);
+    const geo = getGeometryR(cfg);
+    const segs = getVisualSegmentsR(id, cfg);
+
+    let hMaterial = 0;
+    let matched = false;
+
+    for (let i = 0; i < segs.length; i++) {
+        const rect = document.getElementById(segs[i].el).getBoundingClientRect();
+        let belowSum = 0;
+        for (let j = i + 1; j < segs.length; j++) belowSum += segs[j].real;
+
+        if (clientY <= rect.bottom) {
+            const relY = Math.max(0, Math.min(rect.height, clientY - rect.top));
+            const frac = 1 - (relY / rect.height);
+            hMaterial = belowSum + Math.max(0, frac) * segs[i].real;
+            matched = true;
+            break;
+        }
+    }
+
+    if (!matched) hMaterial = 0;
+
+    hMaterial = Math.max(0, Math.min(geo.hTotal, hMaterial));
+    const volume = volumeFromHeightR(hMaterial, cfg, geo);
+
+    aplicarValorArrastadoR(id, cfg, geo, hMaterial, volume);
+}
+
+function aplicarValorArrastadoR(id, cfg, geo, hMaterial, volume) {
+
+    const modo = modoAtualR[id];
+    const input = document.getElementById("valorR" + id);
+    const percentualTotal = geo.volTotal > 0 ? Math.max(0, Math.min(100, (volume / geo.volTotal) * 100)) : 0;
+
+    if (modo === "altura") {
+        const alturaVazia = Math.max(0, Math.min(geo.hTotal, geo.hTotal - hMaterial));
+        input.value = alturaVazia.toFixed(2);
+    } else if (pctTipoR[id] === "total") {
+        input.value = percentualTotal.toFixed(1);
+    } else {
+        const segs = geo.segments;
+        const volCylRaw = segFullVolR(segs[segs.length - 1]);
+        const volBelowRaw = geo.volGeomTotal - volCylRaw;
+        const volBelowCal = volBelowRaw * geo.fator;
+        const volCylCal = volCylRaw * geo.fator;
+        const pctIhm = volCylCal > 0 ? Math.max(0, Math.min(100, ((volume - volBelowCal) / volCylCal) * 100)) : 0;
+        input.value = pctIhm.toFixed(1);
+    }
+
+    calcularRPorFamilia(id);
+}
+
+/* Posiciona os rótulos de dimensão junto ao segmento a que se referem
+   (não podem viver dentro do segmento: este usa overflow:hidden
+   para recortar o preenchimento). */
+function posicionarDimLabels(zoneId) {
+    const zone = document.getElementById(zoneId);
+    if (!zone) return;
+    const zoneRect = zone.getBoundingClientRect();
+
+    zone.querySelectorAll(".dim-label").forEach(function (label) {
+        const seg = document.getElementById(label.dataset.for);
+        if (!seg) return;
+        const segRect = seg.getBoundingClientRect();
+        const centerY = segRect.top + segRect.height / 2;
+        label.style.top = (centerY - zoneRect.top) + "px";
+    });
+}
+
+function attachDragR(id) {
+
+    const zone = document.getElementById("dragZoneR" + id);
+    let arrastando = false;
+    let frame = null;
+
+    function agendar(clientY) {
+        if (frame) return;
+        frame = requestAnimationFrame(function () {
+            frame = null;
+            handleDragR(id, clientY);
+        });
+    }
+
+    zone.addEventListener("pointerdown", function (e) {
+        arrastando = true;
+        zone.classList.add("dragging");
+        zone.setPointerCapture(e.pointerId);
+        handleDragR(id, e.clientY);
+    });
+
+    zone.addEventListener("pointermove", function (e) {
+        if (!arrastando) return;
+        agendar(e.clientY);
+    });
+
+    function soltar(e) {
+        arrastando = false;
+        zone.classList.remove("dragging");
+        if (frame) { cancelAnimationFrame(frame); frame = null; }
+        try { zone.releasePointerCapture(e.pointerId); } catch (err) {}
+    }
+
+    zone.addEventListener("pointerup", soltar);
+    zone.addEventListener("pointercancel", soltar);
+}
+
+
+/* =========================================================
+   INICIALIZAÇÃO
+========================================================= */
+
+window.addEventListener("DOMContentLoaded", function () {
+    attachDrag(1);
+    attachDrag(2);
+    calcular();
+
+    attachDrag(3);
+    attachDrag(4);
+    calcularPulmao();
+
+    attachDrag(5);
+    attachDrag(6);
+    calcularVisco();
+
+    ["1A", "2A", "1B", "2B"].forEach(attachDragR);
+    calcularResina();
+
+    ["SSPA", "SSPB", "VISCOQ"].forEach(attachDragR);
+    calcularQualidade();
+});
+
   </script>
 </body>
 
