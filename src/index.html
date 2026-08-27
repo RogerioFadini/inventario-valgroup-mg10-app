@@ -8,7 +8,7 @@
   <!-- Incremente esse número a cada deploy relevante — usado pra detectar
        automaticamente quando uma versão mais nova foi publicada (ver
        verificarAtualizacaoDisponivel em DOMContentLoaded). -->
-  <meta name="app-version" content="4">
+  <meta name="app-version" content="5">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1a2855">
   <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
@@ -523,6 +523,7 @@
       --shadow-lg: 0 25px 60px rgba(0, 0, 0, 0.45);
       --radius: var(--rl);
       padding: 24px 0 50px;
+      overflow-x: hidden; /* trava de segurança contra qualquer elemento que estoure a largura */
     }
 
     #viewSilos * { box-sizing: border-box; }
@@ -1150,6 +1151,17 @@
     @media (max-width: 860px) {
       #viewSilos .silos { grid-template-columns: 1fr; }
       #viewSilos .adv-grid { grid-template-columns: 1fr; }
+      /* Rótulos longos (ex: "Densidade aparente da resina amorfa...")
+         quebram em várias linhas numa coluna estreita e desalinham com o
+         campo vizinho de rótulo curto — 1 coluna só resolve. */
+      #viewSilos .input-grid { grid-template-columns: 1fr; }
+      #viewSilos .input-label { min-height: 0; }
+      /* Os rótulos de dimensão (ex: "Cilindro 9,25 m") ficam posicionados
+         pra fora do desenho do silo (left:100%) — em telas largas sobra
+         espaço, mas num celular isso estoura a largura da tela e causa
+         scroll horizontal. Escondidos no mobile; os números de ocupação/
+         volume/massa já mostram o que importa. */
+      #viewSilos .dim-label { display: none; }
     }
 
   </style>
