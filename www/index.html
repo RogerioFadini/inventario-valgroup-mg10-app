@@ -1432,7 +1432,7 @@
           <label>Setor produzido <span class="req">*</span></label>
           <select id="setor">
             <option value="Resinas">Resinas</option>
-            <option value="Recicladora">Recicladora</option>
+            <option value="Recicladora">Recicladoras</option>
           </select>
         </div>
         <div class="field">
@@ -3198,7 +3198,7 @@
           <label>Setor</label>
           <select id="editSetor">
             <option value="Resinas">Resinas</option>
-            <option value="Recicladora">Recicladora</option>
+            <option value="Recicladora">Recicladoras</option>
           </select>
         </div>
         <div class="field">
@@ -3434,6 +3434,10 @@
       // (SSPA/SSPB) são da Resinas e o resto, da Recicladora.
       setores: setores || [/\b(ERE|SSP)/.test(desc) ? 'Resinas' : 'Recicladora']
     }));
+
+    // Nome do setor na tela. O valor salvo continua "Recicladora" (chave da
+    // lista de itens e dos lançamentos já feitos); só o texto mostrado muda.
+    function nomeSetor(setor) { return setor === 'Recicladora' ? 'Recicladoras' : (setor || ''); }
 
     // A causa do desvio só vale para refugo (tipo "Subproduto").
     const TIPO_REFUGO = 'Subproduto';
@@ -5235,7 +5239,7 @@
         div.innerHTML = `
           <div class="lc-info">
             <b>${d.nome || '—'}</b> <span class="muted">(${d.matricula || '—'})</span><br>
-            <span class="muted">${d.data_inventario || '—'} · ${d.setor || ''} · ${d.item || ''} · Peso: ${d.peso || '—'}</span><br>
+            <span class="muted">${d.data_inventario || '—'} · ${nomeSetor(d.setor)} · ${d.item || ''} · Peso: ${d.peso || '—'}</span><br>
             ${statusTxt}
           </div>`;
         cont.appendChild(div);
@@ -5536,7 +5540,7 @@
         div.innerHTML = `
           <div class="lc-info">
             <b>${d.nome || '—'}</b> <span class="muted">(${d.matricula || '—'})</span><br>
-            <span class="muted">${d.data_inventario || '—'} · ${d.setor || ''} · ${d.item || ''}</span><br>
+            <span class="muted">${d.data_inventario || '—'} · ${nomeSetor(d.setor)} · ${d.item || ''}</span><br>
             <span class="muted">Peso: ${d.peso || '—'} · Lote: ${d.lote || '—'} · Local: ${d.local || '—'}</span>
             ${d.causa_desvio ? `<br><span class="muted">Desvio: ${d.causa_desvio}</span>` : ''}
             ${d.observacoes ? `<br><span class="muted">Obs: ${d.observacoes}</span>` : ''}
