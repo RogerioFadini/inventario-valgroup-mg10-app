@@ -1444,7 +1444,7 @@
           <select id="item"></select>
         </div>
       </div>
-      <div class="field" style="margin-top:14px">
+      <div class="field" id="campoCausaDesvio" style="margin-top:14px;display:none">
         <label for="causaDesvio">Causa do desvio</label>
         <select id="causaDesvio"></select>
       </div>
@@ -3216,7 +3216,7 @@
           <input type="text" id="editDescMaterial">
         </div>
       </div>
-      <div class="field" style="margin-bottom:14px;">
+      <div class="field" id="campoEditCausaDesvio" style="margin-bottom:14px;">
         <label>Causa do desvio</label>
         <select id="editCausaDesvio"></select>
       </div>
@@ -3428,13 +3428,21 @@
       ['ZRCB', 'PET COM METAL SELECAO'],
       ['ZRCC', 'OUTROS PLASTICOS FOSSO'],
       ['ZRCE', 'PAPELÃO FOSSO']
-    ].map(([codigo, desc]) => ({ codigo, desc, valor: `${codigo} - ${desc}` }));
+    ].map(([codigo, desc]) => ({
+      codigo, desc, valor: `${codigo} - ${desc}`,
+      // ERE (linhas Erema) e SSP (SSPA/SSPB) são da Resinas; o resto, da Recicladora
+      setor: /\b(ERE|SSP)/.test(desc) ? 'Resinas' : 'Recicladora'
+    }));
 
-    function preencherSelectCausaDesvio(sel, valorAtual = '') {
+    // A causa do desvio só vale para refugo (tipo "Subproduto").
+    const TIPO_REFUGO = 'Subproduto';
+
+    // setor: mostra só as causas daquele setor (sem setor, mostra todas).
+    function preencherSelectCausaDesvio(sel, valorAtual = '', setor = '') {
       if (!sel) return;
       sel.innerHTML = '';
       sel.add(new Option('— Sem causa de desvio —', ''));
-      for (const c of CAUSAS_DESVIO) sel.add(new Option(c.valor, c.valor));
+      for (const c of CAUSAS_DESVIO) if (!setor || c.setor === setor) sel.add(new Option(c.valor, c.valor));
       // lançamento antigo com uma causa que saiu da lista: mantém o valor dele
       if (valorAtual && !CAUSAS_DESVIO.some(c => c.valor === valorAtual)) sel.add(new Option(valorAtual, valorAtual));
       sel.value = valorAtual || '';
@@ -3623,7 +3631,18 @@
       atualizarItens();
     }
 
+    // Campo "Causa do desvio": só aparece para refugo e lista só as causas do setor.
+    function atualizarCausaDesvio() {
+      const sel = document.getElementById('causaDesvio');
+      const refugo = gv('produto') === TIPO_REFUGO;
+      document.getElementById('campoCausaDesvio').style.display = refugo ? '' : 'none';
+      const setor = gv('setor');
+      const atual = refugo && CAUSAS_DESVIO.some(c => c.valor === sel.value && c.setor === setor) ? sel.value : '';
+      preencherSelectCausaDesvio(sel, atual, setor);
+    }
+
     function atualizarItens() {
+      atualizarCausaDesvio();
       const itemEl = document.getElementById('item');
       itemEl.innerHTML = '';
       (listaItens[gv('setor')]?.[gv('produto')] || []).forEach(txt => {
@@ -4341,9 +4360,15 @@
       }
 
       if (dados.causaDesvio) {
-        document.getElementById('causaDesvio').value = dados.causaDesvio;
-        highlightField('causaDesvio');
-        preenchidos++;
+        const sel = document.getElementById('causaDesvio');
+        sel.value = dados.causaDesvio;
+        // só aceita se a causa está na lista do setor/tipo da etiqueta
+        if (sel.value === dados.causaDesvio && gv('produto') === TIPO_REFUGO) {
+          highlightField('causaDesvio');
+          preenchidos++;
+        } else {
+          sel.value = '';
+        }
       }
 
       if (preenchidos > 0) {
@@ -4933,8 +4958,13 @@
     });
 
     window.addEventListener('DOMContentLoaded', () => {
-      preencherSelectCausaDesvio(document.getElementById('causaDesvio'));
       document.getElementById('setor').addEventListener('change', atualizarTipos);
+      document.getElementById('editSetor').addEventListener('change', () => {
+        const sel = document.getElementById('editCausaDesvio');
+        const setor = document.getElementById('editSetor').value;
+        const c = CAUSAS_DESVIO.find(x => x.valor === sel.value);
+        preencherSelectCausaDesvio(sel, c && c.setor !== setor ? '' : sel.value, setor);
+      });
       document.getElementById('produto').addEventListener('change', atualizarItens);
       atualizarTipos();
       carregarItensRemoto();
@@ -5582,7 +5612,10 @@
       document.getElementById('editData').value = d.data_inventario || '';
       document.getElementById('editItem').value = d.item || '';
       document.getElementById('editDescMaterial').value = d.desc_material || '';
-      preencherSelectCausaDesvio(document.getElementById('editCausaDesvio'), d.causa_desvio || '');
+      preencherSelectCausaDesvio(document.getElementById('editCausaDesvio'), d.causa_desvio || '', d.setor || 'Resinas');
+      // causa do desvio só para refugo (ou lançamento antigo que já tem uma)
+      document.getElementById('campoEditCausaDesvio').style.display =
+        (d.produto === TIPO_REFUGO || d.causa_desvio) ? '' : 'none';
       document.getElementById('editUc').value = d.uc || '';
       document.getElementById('editLote').value = d.lote || '';
       document.getElementById('editPeso').value = d.peso || '';
