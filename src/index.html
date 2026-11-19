@@ -1453,7 +1453,7 @@
           <label for="uc">Unidade comercial <span class="req">*</span></label>
           <input type="text" inputmode="numeric" id="uc" placeholder="Ex: 00112345678123456789" maxlength="20">
         </div>
-        <div class="field">
+        <div class="field" id="campoLote">
           <label>Lote <span class="req">*</span></label>
           <input type="text" inputmode="numeric" id="lote" placeholder="Ex: 0012345678" maxlength="10">
         </div>
@@ -3417,10 +3417,10 @@
       ['SBPC', 'SSPB - PO DA CS'],
       ['SBPR', 'SSPB - PO DO RLF'],
       ['SCPR', 'SLEEVE + COLORIDO PRENSA'],
-      ['VARA', 'VARREDURA RESINA AMORFA'],
-      ['VARF', 'VARREDURA FLAKE'],
-      ['VARR', 'VARREDURA RESINA'],
-      ['ZF02', 'FALHA DE PROCESSO'],
+      ['VARA', 'VARREDURA RESINA AMORFA', ['Resinas']],
+      ['VARF', 'VARREDURA FLAKE', ['Resinas', 'Recicladora']],
+      ['VARR', 'VARREDURA RESINA', ['Resinas']],
+      ['ZF02', 'FALHA DE PROCESSO', ['Resinas']],
       ['ZRC4', 'ROT TRIT MISTO COM TAMPA TRIT'],
       ['ZRC6', 'ROT TRIT MISTO COM FLAKE'],
       ['ZRC7', 'SUCATA GARRAFA REFUGO REC'],
@@ -3428,10 +3428,11 @@
       ['ZRCB', 'PET COM METAL SELECAO'],
       ['ZRCC', 'OUTROS PLASTICOS FOSSO'],
       ['ZRCE', 'PAPELÃO FOSSO']
-    ].map(([codigo, desc]) => ({
+    ].map(([codigo, desc, setores]) => ({
       codigo, desc, valor: `${codigo} - ${desc}`,
-      // ERE (linhas Erema) e SSP (SSPA/SSPB) são da Resinas; o resto, da Recicladora
-      setor: /\b(ERE|SSP)/.test(desc) ? 'Resinas' : 'Recicladora'
+      // Setores da causa: os indicados acima; senão ERE (linhas Erema) e SSP
+      // (SSPA/SSPB) são da Resinas e o resto, da Recicladora.
+      setores: setores || [/\b(ERE|SSP)/.test(desc) ? 'Resinas' : 'Recicladora']
     }));
 
     // A causa do desvio só vale para refugo (tipo "Subproduto").
@@ -3442,7 +3443,7 @@
       if (!sel) return;
       sel.innerHTML = '';
       sel.add(new Option('— Sem causa de desvio —', ''));
-      for (const c of CAUSAS_DESVIO) if (!setor || c.setor === setor) sel.add(new Option(c.valor, c.valor));
+      for (const c of CAUSAS_DESVIO) if (!setor || c.setores.includes(setor)) sel.add(new Option(c.valor, c.valor));
       // lançamento antigo com uma causa que saiu da lista: mantém o valor dele
       if (valorAtual && !CAUSAS_DESVIO.some(c => c.valor === valorAtual)) sel.add(new Option(valorAtual, valorAtual));
       sel.value = valorAtual || '';
@@ -3636,8 +3637,11 @@
       const sel = document.getElementById('causaDesvio');
       const refugo = gv('produto') === TIPO_REFUGO;
       document.getElementById('campoCausaDesvio').style.display = refugo ? '' : 'none';
+      // Subproduto não tem lote: esconde o campo e não envia valor
+      document.getElementById('campoLote').style.display = refugo ? 'none' : '';
+      if (refugo) document.getElementById('lote').value = '';
       const setor = gv('setor');
-      const atual = refugo && CAUSAS_DESVIO.some(c => c.valor === sel.value && c.setor === setor) ? sel.value : '';
+      const atual = refugo && CAUSAS_DESVIO.some(c => c.valor === sel.value && c.setores.includes(setor)) ? sel.value : '';
       preencherSelectCausaDesvio(sel, atual, setor);
     }
 
@@ -4343,7 +4347,9 @@
         }
       }
       for (const [chave, id] of [['lote', 'lote'], ['peso', 'peso']]) {
-        if (chave === 'lote' && dados.lote) {
+        if (chave === 'lote' && gv('produto') === TIPO_REFUGO) {
+          continue; // Subproduto não tem lote
+        } else if (chave === 'lote' && dados.lote) {
           const lote = normalizarLote(dados.lote, dados.loteDaNF);
           if (lote) {
             document.getElementById('lote').value = lote;
@@ -4963,7 +4969,7 @@
         const sel = document.getElementById('editCausaDesvio');
         const setor = document.getElementById('editSetor').value;
         const c = CAUSAS_DESVIO.find(x => x.valor === sel.value);
-        preencherSelectCausaDesvio(sel, c && c.setor !== setor ? '' : sel.value, setor);
+        preencherSelectCausaDesvio(sel, c && !c.setores.includes(setor) ? '' : sel.value, setor);
       });
       document.getElementById('produto').addEventListener('change', atualizarItens);
       atualizarTipos();
@@ -5066,7 +5072,7 @@
 
       if (!uc && !lote && !peso) {
         toast(
-          'Preencha pelo menos um campo: UC, Lote ou Peso.',
+          gv('produto') === TIPO_REFUGO ? 'Preencha pelo menos um campo: UC ou Peso.' : 'Preencha pelo menos um campo: UC, Lote ou Peso.',
           'error',
           4000
         );
