@@ -6999,7 +6999,9 @@ const ABAS_COMPARACAO_SAP = {
         { nome: "Silo 1", sap: "SAP SL01", kg: () => atualizarSilo(1) },
         { nome: "Silo 2", sap: "SAP SL02", kg: () => atualizarSilo(2) }] },
     resina:    { titulo: "Silos Resina Amorfo Intermediários", silos: ["1A", "2A", "1B", "2B"].map(id =>
-        ({ nome: "Silo " + id, sap: "SAP Silo " + id, kg: () => atualizarSiloR(id) })) },
+        ({ nome: "Silo " + id, kg: () => atualizarSiloR(id) })),
+        /* SAP digitado por depósito (SLOA/SLAV), não por silo */
+        saps: [{ chave: "sloa", rotulo: "SAP SLOA" }, { chave: "slav", rotulo: "SAP SLAV" }] },
     pulmao:    { titulo: "Silos Pulmão Amorfo", silos: [
         { nome: "Pulmão Erema 1", sap: "SAP Pulmão Erema 1", kg: () => atualizarSilo(3) },
         { nome: "Pulmão Erema 2", sap: "SAP Pulmão Erema 2", kg: () => atualizarSilo(4) }] },
@@ -7032,6 +7034,11 @@ function _escaparHtml(s) {
     return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
+/* Campos "SAP" digitados: os da aba (cfg.saps) ou um por silo. */
+function _camposSAP(cfg) {
+    return cfg.saps || cfg.silos.map((s, i) => ({ chave: "sap" + i, rotulo: s.sap }));
+}
+
 function abrirComparacaoSAP(aba) {
     const cfg = ABAS_COMPARACAO_SAP[aba];
     if (!cfg) return;
@@ -7048,7 +7055,7 @@ function abrirComparacaoSAP(aba) {
     });
     html += '<div class="sap-grupo">Digitado</div>';
     html += campo("processo", "Processo");
-    cfg.silos.forEach((s, i) => { html += campo("sap" + i, s.sap); });
+    _camposSAP(cfg).forEach(c => { html += campo(c.chave, c.rotulo); });
     html += campo("inv", "SAP INV");
 
     document.getElementById("sapSubtitulo").textContent = cfg.titulo;
@@ -7074,7 +7081,7 @@ function atualizarComparacaoSAP() {
     localStorage.setItem(_chaveSAP(abaComparacaoSAP), JSON.stringify(digitados));
 
     let sapSilos = 0;
-    cfg.silos.forEach((s, i) => { sapSilos += numeroBR(digitados["sap" + i]); });
+    _camposSAP(cfg).forEach(c => { sapSilos += numeroBR(digitados[c.chave]); });
     const delta = silos - numeroBR(digitados.processo) + sapSilos - numeroBR(digitados.inv);
 
     const el = document.getElementById("sapDelta");
