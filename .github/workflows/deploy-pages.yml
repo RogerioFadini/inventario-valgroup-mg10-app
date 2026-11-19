@@ -37,6 +37,29 @@ jobs:
             sed -i "s|__VISION_API_KEY__|$VISION_API_KEY|g" www/index.html
           fi
 
+      # Lista de arquivos + SHA-256 que o app Android usa para se atualizar sozinho
+      # (ver prepararAtualizacaoAndroid em index.html). Fica DEPOIS da injeção da
+      # chave, para o hash do index.html bater com o que o site serve.
+      - name: Gerar version.json (atualização automática do Android)
+        run: |
+          python3 - <<'EOF'
+          import hashlib, json, os
+          arquivos = []
+          for raiz, _dirs, nomes in os.walk("www"):
+              for nome in nomes:
+                  caminho = os.path.join(raiz, nome)
+                  rel = os.path.relpath(caminho, "www").replace(os.sep, "/")
+                  if rel == "version.json":
+                      continue
+                  with open(caminho, "rb") as f:
+                      dados = f.read()
+                  arquivos.append({"path": rel, "sha256": hashlib.sha256(dados).hexdigest(), "tamanho": len(dados)})
+          arquivos.sort(key=lambda a: a["path"])
+          with open("www/version.json", "w", encoding="utf-8") as f:
+              json.dump({"versao": os.environ["GITHUB_SHA"], "arquivos": arquivos}, f, ensure_ascii=False, indent=1)
+          print(f"version.json: {len(arquivos)} arquivos, versão {os.environ['GITHUB_SHA'][:7]}")
+          EOF
+
       - name: Upload do site (pasta www/)
         uses: actions/upload-pages-artifact@v3
         with:

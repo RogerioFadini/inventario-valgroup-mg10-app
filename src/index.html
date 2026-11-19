@@ -8,7 +8,7 @@
   <!-- Incremente esse número a cada deploy relevante — usado pra detectar
        automaticamente quando uma versão mais nova foi publicada (ver
        verificarAtualizacaoDisponivel em DOMContentLoaded). -->
-  <meta name="app-version" content="10">
+  <meta name="app-version" content="11">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0e1d3b">
   <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
@@ -4455,6 +4455,217 @@
     // cenários. Em outros navegadores esses eventos simplesmente não existem.
     document.addEventListener('gesturestart', (e) => e.preventDefault());
     document.addEventListener('gesturechange', (e) => e.preventDefault());
+
+    // ─── Atualização automática do app Android ───────────────────────────────────
+    // Mesmo esquema do carregador da Automação de Relatórios: o APK traz uma cópia
+    // do site como reserva e, em segundo plano, o app compara o version.json
+    // publicado no GitHub Pages (gerado pelo workflow a cada push) com o da versão
+    // em uso. Se mudou, monta a versão nova em files/atualizacao/v-<commit>/:
+    // arquivos iguais vêm da versão em uso, só os alterados são baixados, e CADA
+    // arquivo é conferido pelo SHA-256 antes de valer — download pela metade ou
+    // arquivo diferente do publicado descarta a versão (mantém a atual).
+    // A versão nova entra:
+    //   - na próxima abertura do app (MainActivity.java ativa a pasta), ou
+    //   - ao voltar ao app depois de 15 min em segundo plano, se não houver
+    //     lançamento sendo digitado, janela aberta nem fila de envio pendente.
+    // Proteção contra versão quebrada: depois de abrir sem erro, a versão grava
+    // ".ok" na pasta dela; sem isso, MainActivity volta para a cópia do APK na 3ª
+    // abertura e anota a versão em atualizacao/ruim.txt (não é baixada de novo).
+    const ATUALIZACAO = {
+      site: 'https://rogeriofadini.github.io/inventario-valgroup-mg10-app/',
+      pasta: 'atualizacao',
+      minutosForaParaAplicar: 15,
+      minutosEntreChecagens: 30,
+    };
+    let atualizacaoEmAndamento = false;
+    let ultimaChecagemAtualizacao = 0;
+    let errosDesdeAbertura = 0;
+    window.addEventListener('error', () => { errosDesdeAbertura++; });
+    window.addEventListener('unhandledrejection', () => { errosDesdeAbertura++; });
+
+    function atualizacaoNativaDisponivel() {
+      const C = window.Capacitor;
+      return !!(C?.isNativePlatform?.() && C.getPlatform?.() === 'android'
+        && C.Plugins?.Filesystem && C.Plugins?.WebView && window.crypto?.subtle);
+    }
+
+    async function lerTextoApp(caminho) {
+      try {
+        const r = await window.Capacitor.Plugins.Filesystem.readFile({ path: caminho, directory: 'DATA', encoding: 'utf8' });
+        return (r?.data || '').toString();
+      } catch (e) { return ''; }
+    }
+
+    async function gravarTextoApp(caminho, texto) {
+      await window.Capacitor.Plugins.Filesystem.writeFile({ path: caminho, data: texto, directory: 'DATA', encoding: 'utf8', recursive: true });
+    }
+
+    function bytesParaBase64(bytes) {
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      return btoa(bin);
+    }
+
+    async function sha256Hex(bytes) {
+      const h = await crypto.subtle.digest('SHA-256', bytes);
+      return Array.from(new Uint8Array(h), b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Versão que está aberta agora: pasta baixada (ou null = cópia do APK) e o
+    // version.json dela (a cópia do APK pode não ter).
+    async function versaoEmUsoNoApp() {
+      let base = '';
+      try { base = (await window.Capacitor.Plugins.WebView.getServerBasePath())?.path || ''; } catch (e) { }
+      const marcador = '/' + ATUALIZACAO.pasta + '/';
+      const pasta = base.includes(marcador) ? base.split(marcador).pop().split('/')[0] : null;
+      let manifesto = null;
+      try {
+        const r = await fetch('version.json', { cache: 'no-store' });
+        if (r.ok) manifesto = await r.json();
+      } catch (e) { }
+      return { pasta, manifesto };
+    }
+
+    async function prepararAtualizacaoAndroid() {
+      if (atualizacaoEmAndamento || !atualizacaoNativaDisponivel()) return;
+      atualizacaoEmAndamento = true;
+      ultimaChecagemAtualizacao = Date.now();
+      const FS = window.Capacitor.Plugins.Filesystem;
+      const D = 'DATA';
+      const raiz = ATUALIZACAO.pasta;
+      let tmp = null;
+      try {
+        const resp = await fetch(ATUALIZACAO.site + 'version.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!resp.ok) return;
+        const remoto = await resp.json();
+        if (!remoto?.versao || !Array.isArray(remoto.arquivos) || !remoto.arquivos.length) return;
+        const nomeNova = 'v-' + String(remoto.versao).slice(0, 12);
+
+        const emUso = await versaoEmUsoNoApp();
+        if (emUso.manifesto?.versao === remoto.versao) return;                       // já está nela
+        if ((await lerTextoApp(raiz + '/proxima.txt')).trim() === nomeNova) return;   // já baixada, esperando abrir
+        if ((await lerTextoApp(raiz + '/ruim.txt')).split(/\s+/).includes(nomeNova)) return;
+
+        console.log('[Atualização] baixando a versão', nomeNova);
+        tmp = `${raiz}/tmp-${nomeNova}`;
+        try { await FS.rmdir({ path: tmp, directory: D, recursive: true }); } catch (e) { }
+        const shaEmUso = new Map((emUso.manifesto?.arquivos || []).map(a => [a.path, a.sha256]));
+        let baixados = 0;
+
+        for (const arq of remoto.arquivos) {
+          const rel = String(arq.path || '');
+          if (!rel || rel.startsWith('/') || rel.split('/').includes('..') || !/^[\w.\-\/]+$/.test(rel)) {
+            throw new Error('caminho inválido no version.json: ' + rel);
+          }
+          const destino = `${tmp}/${rel}`;
+
+          // 1) Igual ao da versão baixada em uso: cópia local, sem rede.
+          if (emUso.pasta && shaEmUso.get(rel) === arq.sha256) {
+            try {
+              await FS.copy({ from: `${raiz}/${emUso.pasta}/${rel}`, to: destino, directory: D, toDirectory: D });
+              continue;
+            } catch (e) { /* cai para os próximos jeitos */ }
+          }
+
+          // 2) Igual ao arquivo que está sendo servido agora (ex.: a cópia do APK).
+          let bytes = null;
+          try {
+            const r = await fetch(rel, { cache: 'no-store' });
+            if (r.ok) {
+              const b = new Uint8Array(await r.arrayBuffer());
+              if (await sha256Hex(b) === arq.sha256) bytes = b;
+            }
+          } catch (e) { }
+
+          // 3) Baixa do GitHub Pages e confere.
+          if (!bytes) {
+            const r = await fetch(ATUALIZACAO.site + rel + '?v=' + nomeNova, { cache: 'no-store' });
+            if (!r.ok) throw new Error(`HTTP ${r.status} em ${rel}`);
+            bytes = new Uint8Array(await r.arrayBuffer());
+            if (await sha256Hex(bytes) !== arq.sha256) throw new Error('arquivo diferente do publicado: ' + rel);
+            baixados++;
+          }
+          await FS.writeFile({ path: destino, data: bytesParaBase64(bytes), directory: D, recursive: true });
+        }
+
+        if (!(await lerTextoApp(`${tmp}/index.html`)).includes('name="app-version"')) {
+          throw new Error('index.html da versão nova incompleto');
+        }
+        await gravarTextoApp(`${tmp}/version.json`, JSON.stringify(remoto));
+
+        const final = `${raiz}/${nomeNova}`;
+        try { await FS.rmdir({ path: final, directory: D, recursive: true }); } catch (e) { }
+        await FS.rename({ from: tmp, to: final, directory: D, toDirectory: D });
+        tmp = null;
+        await gravarTextoApp(raiz + '/proxima.txt', nomeNova);
+
+        // Limpa versões antigas: fica só a em uso e a nova.
+        try {
+          const { files } = await FS.readdir({ path: raiz, directory: D });
+          for (const f of files || []) {
+            const nome = typeof f === 'string' ? f : f.name;
+            if (/^(v|tmp)-/.test(nome) && nome !== emUso.pasta && nome !== nomeNova) {
+              try { await FS.rmdir({ path: `${raiz}/${nome}`, directory: D, recursive: true }); } catch (e) { }
+            }
+          }
+        } catch (e) { }
+
+        console.log(`[Atualização] versão ${nomeNova} pronta (${baixados} arquivo(s) baixado(s)) — entra na próxima abertura.`);
+      } catch (e) {
+        console.warn('[Atualização] versão nova não preparada, segue a atual:', e);
+        if (tmp) { try { await FS.rmdir({ path: tmp, directory: D, recursive: true }); } catch (e2) { } }
+      } finally {
+        atualizacaoEmAndamento = false;
+      }
+    }
+
+    // Lançamento sendo digitado, janela aberta ou envio pendente = não recarrega.
+    async function appOcupadoParaAtualizar() {
+      if (atualizacaoEmAndamento) return true;
+      if (document.querySelector('#configModal.show, #editModal.show, #exportModal.show, #exportProntoModal.show, #itensEditorModal.show, #ov.show')) return true;
+      if (['uc', 'lote', 'peso'].some(id => (document.getElementById(id)?.value || '').trim())) return true;
+      try { if ((await getFila()).length) return true; } catch (e) { return true; }
+      return false;
+    }
+
+    async function aplicarAtualizacaoSeOcioso() {
+      const nome = (await lerTextoApp(ATUALIZACAO.pasta + '/proxima.txt')).trim();
+      if (!nome || await appOcupadoParaAtualizar()) return false;
+      try {
+        const { uri } = await window.Capacitor.Plugins.Filesystem.getUri({ path: `${ATUALIZACAO.pasta}/${nome}`, directory: 'DATA' });
+        const caminho = decodeURIComponent(uri.replace(/^file:\/\//, ''));
+        console.log('[Atualização] aplicando a versão', nome);
+        // proxima.txt fica: na próxima abertura a MainActivity grava essa pasta como a padrão.
+        await window.Capacitor.Plugins.WebView.setServerBasePath({ path: caminho });
+        return true;
+      } catch (e) {
+        console.warn('[Atualização] não deu para aplicar agora — fica para a próxima abertura:', e);
+        return false;
+      }
+    }
+
+    // Versão baixada que abriu sem erro: grava ".ok" (ver MainActivity.java).
+    async function confirmarVersaoAbriuOk() {
+      if (errosDesdeAbertura) return;
+      const { pasta } = await versaoEmUsoNoApp();
+      if (!pasta) return;
+      try { await gravarTextoApp(`${ATUALIZACAO.pasta}/${pasta}/.ok`, new Date().toISOString()); } catch (e) { }
+    }
+
+    if (atualizacaoNativaDisponivel()) {
+      window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(confirmarVersaoAbriuOk, 8000);
+        setTimeout(prepararAtualizacaoAndroid, 15000);
+      });
+      let ocultoDesde = 0;
+      document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'hidden') { ocultoDesde = Date.now(); return; }
+        const minutosFora = ocultoDesde ? (Date.now() - ocultoDesde) / 60000 : 0;
+        ocultoDesde = 0;
+        if (minutosFora >= ATUALIZACAO.minutosForaParaAplicar && await aplicarAtualizacaoSeOcioso()) return;
+        if (Date.now() - ultimaChecagemAtualizacao >= ATUALIZACAO.minutosEntreChecagens * 60000) prepararAtualizacaoAndroid();
+      });
+    }
 
     // ─── PWA: Service Worker + aviso de instalação (só fora do Capacitor) ─────────
     // O SW só faz sentido rodando como site — dentro da WebView do Capacitor os
