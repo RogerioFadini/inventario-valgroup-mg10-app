@@ -7003,8 +7003,9 @@ const ABAS_COMPARACAO_SAP = {
         /* SAP digitado por depósito (SLOA/SLAV), não por silo */
         saps: [{ chave: "sloa", rotulo: "SAP SLOA" }, { chave: "slav", rotulo: "SAP SLAV" }] },
     pulmao:    { titulo: "Silos Pulmão Amorfo", silos: [
-        { nome: "Pulmão Erema 1", sap: "SAP Pulmão Erema 1", kg: () => atualizarSilo(3) },
-        { nome: "Pulmão Erema 2", sap: "SAP Pulmão Erema 2", kg: () => atualizarSilo(4) }] },
+        { nome: "Pulmão Erema 1", kg: () => atualizarSilo(3) },
+        { nome: "Pulmão Erema 2", kg: () => atualizarSilo(4) }],
+        saps: [] /* sem SAP por pulmão: só Processo e SAP INV */ },
     visco:     { titulo: "Silos Viscotech", silos: [
         { nome: "Silo Resfriamento", sap: "SAP Silo Resfriamento", kg: () => atualizarSilo(5) },
         { nome: "Pulmão CZ", sap: "SAP Pulmão CZ", kg: () => atualizarSilo(6) }] },
