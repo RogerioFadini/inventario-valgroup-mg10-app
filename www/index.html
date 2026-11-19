@@ -8,7 +8,7 @@
   <!-- Incremente esse número a cada deploy relevante — usado pra detectar
        automaticamente quando uma versão mais nova foi publicada (ver
        verificarAtualizacaoDisponivel em DOMContentLoaded). -->
-  <meta name="app-version" content="11">
+  <meta name="app-version" content="12">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0e1d3b">
   <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
@@ -1402,6 +1402,10 @@
           <label>Item <span class="req">*</span></label>
           <select id="item"></select>
         </div>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <label for="causaDesvio">Causa do desvio</label>
+        <select id="causaDesvio"></select>
       </div>
       <div class="g2" style="margin-top:14px">
         <div class="field">
@@ -3147,6 +3151,10 @@
           <input type="text" id="editDescMaterial">
         </div>
       </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label>Causa do desvio</label>
+        <select id="editCausaDesvio"></select>
+      </div>
       <div class="g3" style="margin-bottom:14px;">
         <div class="field">
           <label>UC</label>
@@ -3308,6 +3316,134 @@
         "Matéria Prima": ["541010 - APARA PF COM OLEO", "541012 - APARA PF AZUL", "541013 - APARA PF COLORIDA", "541014 - APARA PF CRISTAL", "541015 - APARA PF VERDE", "541016 - APARA PF VERMELHO", "541017 - APARA PF BRANCA", "159001 - SUCATA GARRAFA VERDE", "159002 - SUCATA GARRAFA CRISTAL", "159003 - SUCATA GARRAFA AZUL", "159005 - SUCATA GARRAFA OLEO"]
       }
     };
+
+    // ─── Causas de desvio (campo "C. Desvio" das etiquetas) ──────────────────────
+    // Só as causas usadas nas regras de refugo das linhas (REC01/02, ERE01/02/03,
+    // VISCO, SSPA/B). Código (4 caracteres) e descrição como no SAP — o mesmo
+    // texto impresso na etiqueta. O lançamento guarda "CÓDIGO - DESCRIÇÃO" em
+    // causa_desvio.
+    const CAUSAS_DESVIO = [
+      ['DEME', 'PET COM M. TAMBOR MAGNETICO'],
+      ['DHCI', 'DESCARTE DO HIDROCICLONE'],
+      ['E1CM', 'ERE001 - BORRA COM METAL'],
+      ['E1PO', 'ERE001 - PO EREMA'],
+      ['E1QM', 'ERE001 - APARA QUEIMADA'],
+      ['E1SM', 'ERE001 - BORRA SEM METAL'],
+      ['E2CM', 'ERE002 - BORRA COM METAL'],
+      ['E2PO', 'ERE002 - PO EREMA'],
+      ['E2QM', 'ERE002 - APARA QUEIMADA'],
+      ['E2SM', 'ERE002 - BORRA SEM METAL'],
+      ['E3CM', 'ERE003 - BORRA COM METAL'],
+      ['E3PO', 'ERE003 - PO EREMA'],
+      ['E3QM', 'ERE003 - APARA QUEIMADA'],
+      ['E3SM', 'ERE003 - BORRA SEM METAL'],
+      ['PAMD', 'PÓ - ANTES AMD'],
+      ['POCE', 'PÓ DA CENTRIFUGA'],
+      ['PODE', 'PÓ DO DESPOEIRADOR'],
+      ['PPSE', 'PÓ - PENEIRA MOINHO SEC.'],
+      ['PSEA', 'PÓ ANTES SEA'],
+      ['RFAM', 'REJEIO FLAKE AMD'],
+      ['RFSS', 'REJEITO FLAKE S+S'],
+      ['ROME', 'ROTULO MESA VIBRATÓRIA'],
+      ['RSEA', 'REJEITO SEA'],
+      ['RUNI', 'REJEITO UNISENSOR'],
+      ['SAPC', 'SSPA - PO DA CS'],
+      ['SAPR', 'SSPA - PO DO RLF'],
+      ['SBPC', 'SSPB - PO DA CS'],
+      ['SBPR', 'SSPB - PO DO RLF'],
+      ['SCPR', 'SLEEVE + COLORIDO PRENSA'],
+      ['VARA', 'VARREDURA RESINA AMORFA'],
+      ['VARF', 'VARREDURA FLAKE'],
+      ['VARR', 'VARREDURA RESINA'],
+      ['ZF02', 'FALHA DE PROCESSO'],
+      ['ZRC4', 'ROT TRIT MISTO COM TAMPA TRIT'],
+      ['ZRC6', 'ROT TRIT MISTO COM FLAKE'],
+      ['ZRC7', 'SUCATA GARRAFA REFUGO REC'],
+      ['ZRC8', 'ROT COM TAMPA BALISTICO'],
+      ['ZRCB', 'PET COM METAL SELECAO'],
+      ['ZRCC', 'OUTROS PLASTICOS FOSSO'],
+      ['ZRCE', 'PAPELÃO FOSSO']
+    ].map(([codigo, desc]) => ({ codigo, desc, valor: `${codigo} - ${desc}` }));
+
+    function preencherSelectCausaDesvio(sel, valorAtual = '') {
+      if (!sel) return;
+      sel.innerHTML = '';
+      sel.add(new Option('— Sem causa de desvio —', ''));
+      for (const c of CAUSAS_DESVIO) sel.add(new Option(c.valor, c.valor));
+      // lançamento antigo com uma causa que saiu da lista: mantém o valor dele
+      if (valorAtual && !CAUSAS_DESVIO.some(c => c.valor === valorAtual)) sel.add(new Option(valorAtual, valorAtual));
+      sel.value = valorAtual || '';
+    }
+
+    function _semAcento(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+    // O e 0 se confundem no OCR (e nos próprios códigos: PO12, ZF01) — compara sem distinguir.
+    function _chaveCodigoDesvio(c) { return _semAcento(c).toUpperCase().replace(/O/g, '0').replace(/[^A-Z0-9]/g, ''); }
+    function _palavrasDesvio(s) { return _semAcento(s).toUpperCase().replace(/O/g, '0').split(/[^A-Z0-9+]+/).filter(Boolean); }
+
+    // Fração das palavras da descrição que aparecem no texto lido. Palavra com
+    // dígito (ERE001, ERE002...) precisa bater exata; as outras aceitam 1 erro.
+    function _coberturaDesvio(causa, palavrasTexto) {
+      const alvo = _palavrasDesvio(causa.desc);
+      if (!alvo.length) return 0;
+      const presentes = alvo.filter(p => palavrasTexto.some(t =>
+        /\d/.test(p) ? t === p : (t === p || (p.length >= 4 && Math.abs(t.length - p.length) <= 1 && levenshtein(t, p) <= 1))
+      )).length;
+      return presentes / alvo.length;
+    }
+
+    function _causaPorTexto(textoLinha) {
+      const R = _semAcento(textoLinha).toUpperCase().trim();
+      const palavras = _palavrasDesvio(R);
+      // 1) código exato no começo ("PODE - PÓ DO ...") ou em qualquer palavra de 4 caracteres
+      const inicio = R.match(/^([A-Z0-9]{4})(?![A-Z0-9])/);
+      const candidatosCodigo = [inicio?.[1], ...R.split(/[^A-Z0-9]+/).filter(t => t.length === 4)].filter(Boolean);
+      for (const cod of candidatosCodigo) {
+        const achou = CAUSAS_DESVIO.find(c => _chaveCodigoDesvio(c.codigo) === _chaveCodigoDesvio(cod));
+        if (achou) return achou;
+      }
+      // 2) pela descrição (OCR errou o código)
+      let melhor = null, melhorValor = 0;
+      for (const c of CAUSAS_DESVIO) {
+        const cob = _coberturaDesvio(c, palavras);
+        const valor = cob + (cob === 1 ? _palavrasDesvio(c.desc).length * 0.05 : 0);
+        if (valor > melhorValor) { melhorValor = valor; melhor = c; }
+      }
+      if (melhor && _coberturaDesvio(melhor, palavras) >= 0.75) return melhor;
+      // 3) código com 1 caractere errado, se for o único próximo e a descrição ajudar
+      if (inicio) {
+        const k = _chaveCodigoDesvio(inicio[1]);
+        const perto = CAUSAS_DESVIO.filter(c => levenshtein(_chaveCodigoDesvio(c.codigo), k) <= 1);
+        if (perto.length === 1 && _coberturaDesvio(perto[0], palavras) >= 0.5) return perto[0];
+      }
+      return null;
+    }
+
+    // Devolve { causa: "CÓDIGO - DESCRIÇÃO" | null, linhasUsadas: [índices] } —
+    // índices das linhas (não vazias) usadas, para o parser do item ignorá-las.
+    function extrairCausaDesvio(texto) {
+      const linhas = texto.split('\n').map(l => l.trim()).filter(Boolean);
+      const rotulo = /d\s*[e3]\s*s\s*v\s*[i1l]\s*[o0]/i;
+      const idx = linhas.findIndex(l => rotulo.test(_semAcento(l)));
+      if (idx !== -1) {
+        const resto = _semAcento(linhas[idx]).replace(/^.*?d\s*[e3]\s*s\s*v\s*[i1l]\s*[o0]\s*[:.\-]?\s*/i, '');
+        let achou = /[A-Z0-9]{3}/i.test(resto) ? _causaPorTexto(resto) : null;
+        if (achou) return { causa: achou.valor, linhasUsadas: [idx] };
+        // OCR separou o rótulo do valor: tenta a linha seguinte
+        if (idx + 1 < linhas.length) {
+          achou = _causaPorTexto(linhas[idx + 1]);
+          if (achou) return { causa: achou.valor, linhasUsadas: [idx, idx + 1] };
+        }
+      }
+      // Sem o rótulo legível: "XXXX - DESCRIÇÃO" (código da lista com exatamente 4
+      // caracteres — o "538021 - ..." do item não casa) em qualquer ponto da linha
+      for (let i = 0; i < linhas.length; i++) {
+        const m = _semAcento(linhas[i]).toUpperCase().match(/(?:^|[^A-Z0-9])([A-Z0-9]{4})\s*[-–]\s*(.+)$/);
+        if (!m) continue;
+        const c = CAUSAS_DESVIO.find(x => _chaveCodigoDesvio(x.codigo) === _chaveCodigoDesvio(m[1]));
+        if (c && _coberturaDesvio(c, _palavrasDesvio(m[2])) >= 0.5) return { causa: c.valor, linhasUsadas: [i] };
+      }
+      return { causa: null, linhasUsadas: idx !== -1 ? [idx] : [] };
+    }
 
     // ─── Token do GitHub (salvo localmente no dispositivo) ────────────────────────
     const GITHUB_TOKEN_KEY = 'valgroup_mg10_gh_token';
@@ -3930,7 +4066,15 @@
         // ─── Parser da etiqueta ───────────────────────────────────────────────────────
       function parsearEtiqueta(texto) {
         const t = texto.replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').replace(/[''`]/g, '').trim();
-        const tFlat = t.replace(/\n/g, ' ').replace(/ +/g, ' ');
+
+        // Causa do desvio ("C. Desvio: PODE - PÓ DO DESPOEIRADOR"). A linha dela
+        // sai do texto usado para achar o item — as palavras da causa (PÓ,
+        // DESPOEIRADOR...) confundiriam o casamento pela descrição do item.
+        const desvio = extrairCausaDesvio(t);
+        const tItem = desvio.linhasUsadas.length
+          ? t.split('\n').map(l => l.trim()).filter(Boolean).filter((_, i) => !desvio.linhasUsadas.includes(i)).join('\n')
+          : t;
+        const tFlat = tItem.replace(/\n/g, ' ').replace(/ +/g, ' ');
         const textoUpper = tFlat.toUpperCase();
 
         let lote = extrairLote(t);
@@ -4001,14 +4145,14 @@
         // ─── candidato por CÓDIGO ───────────────────────────────────────────────────
         let candidatoCodigo = null;
         let itemCode = null;
-        const aparaMatch = t.match(/[Ii]tem\s+[Aa]para\s*[:\-]?\s*([A-Z0-9]{5,7})/);
+        const aparaMatch = tItem.match(/[Ii]tem\s+[Aa]para\s*[:\-]?\s*([A-Z0-9]{5,7})/);
         if (aparaMatch) itemCode = aparaMatch[1];
         if (!itemCode) {
-          const itemMatch = t.match(/[Ii]tem\s*[:\-]?\s*([A-Z0-9]{5,7})(?!\s*[Aa]para)/);
+          const itemMatch = tItem.match(/[Ii]tem\s*[:\-]?\s*([A-Z0-9]{5,7})(?!\s*[Aa]para)/);
           if (itemMatch) itemCode = itemMatch[1];
         }
         if (!itemCode) {
-          const codigoMatch = t.match(/\b([A-Z0-9]{5,7})\b/);
+          const codigoMatch = tItem.match(/\b([A-Z0-9]{5,7})\b/);
           if (codigoMatch) itemCode = codigoMatch[1];
         }
 
@@ -4066,8 +4210,9 @@
         let item = null, setor = null, tipo = null;
         if (escolhido) { item = escolhido.it; setor = escolhido.setor; tipo = escolhido.tipo; }
 
-        console.log('[Parser] resultado:', { lote, peso, item, setor, tipo });
-        return { lote, peso, item, setor, tipo, loteDaNF };
+        const causaDesvio = desvio.causa;
+        console.log('[Parser] resultado:', { lote, peso, item, setor, tipo, causaDesvio });
+        return { lote, peso, item, setor, tipo, loteDaNF, causaDesvio };
       }                    
 
     // ─── Distância de edição (Levenshtein) simples ────────────────────────────────
@@ -4128,6 +4273,12 @@
           highlightField(id);
           preenchidos++;
         }
+      }
+
+      if (dados.causaDesvio) {
+        document.getElementById('causaDesvio').value = dados.causaDesvio;
+        highlightField('causaDesvio');
+        preenchidos++;
       }
 
       if (preenchidos > 0) {
@@ -4717,6 +4868,7 @@
     });
 
     window.addEventListener('DOMContentLoaded', () => {
+      preencherSelectCausaDesvio(document.getElementById('causaDesvio'));
       document.getElementById('setor').addEventListener('change', atualizarTipos);
       document.getElementById('produto').addEventListener('change', atualizarItens);
       atualizarTipos();
@@ -4756,6 +4908,7 @@
         produto: gv('produto'),
         item: codigo,
         desc_material: descricao,
+        causa_desvio: gv('causaDesvio'),
         uc: gv('uc'),
         lote: gv('lote'),
         peso: gv('peso'),
@@ -4856,6 +5009,7 @@
       document.getElementById('peso').value = '';
       document.getElementById('lote').value = '';
       document.getElementById('uc').value = '';
+      document.getElementById('causaDesvio').value = '';
       localEscolhidoManualmente = false;
     }
 
@@ -5283,6 +5437,7 @@
             <b>${d.nome || '—'}</b> <span class="muted">(${d.matricula || '—'})</span><br>
             <span class="muted">${d.data_inventario || '—'} · ${d.setor || ''} · ${d.item || ''}</span><br>
             <span class="muted">Peso: ${d.peso || '—'} · Lote: ${d.lote || '—'} · Local: ${d.local || '—'}</span>
+            ${d.causa_desvio ? `<br><span class="muted">Desvio: ${d.causa_desvio}</span>` : ''}
             ${d.observacoes ? `<br><span class="muted">Obs: ${d.observacoes}</span>` : ''}
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
@@ -5362,6 +5517,7 @@
       document.getElementById('editData').value = d.data_inventario || '';
       document.getElementById('editItem').value = d.item || '';
       document.getElementById('editDescMaterial').value = d.desc_material || '';
+      preencherSelectCausaDesvio(document.getElementById('editCausaDesvio'), d.causa_desvio || '');
       document.getElementById('editUc').value = d.uc || '';
       document.getElementById('editLote').value = d.lote || '';
       document.getElementById('editPeso').value = d.peso || '';
@@ -5389,6 +5545,7 @@
         produto: item.dados.produto || '',
         item: document.getElementById('editItem').value,
         desc_material: document.getElementById('editDescMaterial').value,
+        causa_desvio: document.getElementById('editCausaDesvio').value,
         uc: document.getElementById('editUc').value,
         lote: document.getElementById('editLote').value,
         peso: document.getElementById('editPeso').value,
@@ -5489,8 +5646,8 @@
 
       if (!itens.length) { toast('Nenhum lançamento encontrado para esse filtro.', 'error'); return; }
 
-      const colunas = ['data_inventario', 'nome', 'matricula', 'setor', 'produto', 'item', 'desc_material', 'uc', 'lote', 'peso', 'local', 'observacoes'];
-      const cabecalho = ['Data', 'Nome', 'Matrícula', 'Setor', 'Tipo', 'Item', 'Descrição', 'UC', 'Lote', 'Peso', 'Local', 'Observações'];
+      const colunas = ['data_inventario', 'nome', 'matricula', 'setor', 'produto', 'item', 'desc_material', 'causa_desvio', 'uc', 'lote', 'peso', 'local', 'observacoes'];
+      const cabecalho = ['Data', 'Nome', 'Matrícula', 'Setor', 'Tipo', 'Item', 'Descrição', 'Causa desvio', 'UC', 'Lote', 'Peso', 'Local', 'Observações'];
 
       const TAMANHO_FONTE_PADRAO = 11;
       const TAMANHO_FONTE_CABECALHO = TAMANHO_FONTE_PADRAO + 2;
