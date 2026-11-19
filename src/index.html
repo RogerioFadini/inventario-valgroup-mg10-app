@@ -8,9 +8,9 @@
   <!-- Incremente esse número a cada deploy relevante — usado pra detectar
        automaticamente quando uma versão mais nova foi publicada (ver
        verificarAtualizacaoDisponivel em DOMContentLoaded). -->
-  <meta name="app-version" content="8">
+  <meta name="app-version" content="9">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1a2855">
+  <meta name="theme-color" content="#0e1d3b">
   <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -18,25 +18,35 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+    /* Paleta idêntica à do programa desktop (Automação SAP • Relatórios, interface.html) */
     :root {
-      --bg: #000535;
-      --val: #1a2855;
-      --group: #1d8d3c;
-      --card: #1e2330;
-      --border: #2a3045;
-      --accent: #006810;
-      --accent2: #009e1a;
-      --text: #e8ecf4;
-      --muted: #7a859e;
-      --danger: #e05050;
-      --success: #3dc97a;
-      --input-bg: #252b3b;
-      --input-focus: #2e3650;
-      --site: #838383;
+      --bg: #0b1730;
+      --sidebar: #0e1d3b;
+      --val: #93a6c4;
+      --group: #1f9a4a;
+      --card: #112449;
+      --card2: #1a335f;
+      --linha: #162d57;
+      --border: #223f6b;
+      --border-soft: #1a3157;
+      --accent: #1f9a4a;
+      --accent-dark: #1a7733;
+      --accent2: #3ccf7e;
+      --azul: #078feb;
+      --text: #eaf0f8;
+      --muted: #93a6c4;
+      --faint: #5f7598;
+      --danger: #e5484d;
+      --success: #3ccf7e;
+      --input-bg: #0a1630;
+      --input-focus: #0a1630;
+      --site: #5f7598;
       --r: 8px;
-      --rl: 14px;
+      --rl: 16px;
+      --font: "Segoe UI", Inter, system-ui, sans-serif;
+      --ease: cubic-bezier(.2, .8, .2, 1);
     }
 
     * {
@@ -48,21 +58,22 @@
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'Inter', sans-serif;
+      font-family: var(--font);
       font-size: 14px;
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
       touch-action: manipulation;
     }
 
     header {
-      background: linear-gradient(135deg, #0a0d14, #181c25);
-      border-bottom: 2px solid var(--accent);
+      background: var(--sidebar);
+      border-bottom: 1px solid var(--border);
       padding: 0 24px;
       padding-top: max(0px, env(safe-area-inset-top));
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 4px 24px #000a;
+      box-shadow: none;
     }
 
     .hi {
@@ -88,10 +99,10 @@
     }
 
     .logo-text {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: 2px;
+      font-family: var(--font);
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 1px;
       line-height: 1;
     }
 
@@ -103,7 +114,7 @@
     .logo-sub {
       font-size: 10px;
       color: var(--muted);
-      letter-spacing: 3px;
+      letter-spacing: .04em;
       text-transform: uppercase;
       margin-top: 2px;
     }
@@ -115,12 +126,10 @@
     }
 
     .ptitle {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 20px;
+      font-family: var(--font);
+      font-size: 21px;
       font-weight: 600;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--muted);
+      color: var(--text);
       margin-bottom: 20px;
       display: flex;
       align-items: center;
@@ -145,11 +154,9 @@
     }
 
     .ctitle {
-      font-size: 11px;
+      font-size: 17px;
       font-weight: 600;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--accent);
+      color: var(--text);
       margin-bottom: 18px;
       display: flex;
       align-items: center;
@@ -186,16 +193,16 @@
       text-transform: uppercase;
     }
 
-    .req { color: var(--accent); margin-left: 2px; }
+    .req { color: var(--accent2); margin-left: 2px; }
 
     input, select, textarea {
       background: var(--input-bg);
       border: 1px solid var(--border);
       border-radius: var(--r);
       color: var(--text);
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      padding: 10px 12px;
+      font-family: var(--font);
+      font-size: 14.5px;
+      padding: 9px 12px;
       width: 100%;
       transition: border-color .15s, background .15s, box-shadow .15s;
       outline: none;
@@ -204,9 +211,9 @@
     }
 
     input:focus, select:focus, textarea:focus {
-      border-color: var(--accent);
+      border-color: var(--azul);
       background: var(--input-focus);
-      box-shadow: 0 0 0 3px #00681022;
+      box-shadow: none;
     }
 
     select {
@@ -227,7 +234,7 @@
     .ai-filled {
       border-color: var(--accent2) !important;
       background: var(--input-focus) !important;
-      box-shadow: 0 0 0 3px #009e1a22 !important;
+      box-shadow: none !important;
       transition: all .4s ease;
     }
 
@@ -238,28 +245,21 @@
       gap: 12px;
       background: var(--accent);
       border: none;
-      border-radius: var(--r);
-      color: #0a0d14;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      padding: 16px 40px;
+      border-radius: 10px;
+      color: #fff;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 600;
+      padding: 0 20px;
+      height: 46px;
       width: 100%;
       cursor: pointer;
-      transition: background .15s, transform .1s, box-shadow .15s;
-      box-shadow: 0 4px 20px #00681040;
+      transition: filter .12s, background .12s;
+      box-shadow: none;
       margin-top: 8px;
     }
 
-    .btn-sub:hover {
-      background: var(--accent2);
-      box-shadow: 0 6px 28px #00681060;
-      transform: translateY(-1px);
-    }
-
-    .btn-sub:active { transform: translateY(0); }
+    .btn-sub:hover { filter: brightness(1.12); }
 
     .btn-sub:disabled {
       background: var(--border);
@@ -280,7 +280,7 @@
       padding: 14px 28px;
       font-size: 14px;
       font-weight: 500;
-      box-shadow: 0 8px 32px #0008;
+      box-shadow: 0 24px 60px rgba(0,0,0,.55);
       z-index: 9999;
       transition: transform .3s ease, opacity .3s;
       opacity: 0;
@@ -293,7 +293,7 @@
     #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
     #toast.success { border-color: var(--success); color: var(--success); }
     #toast.error { border-color: var(--danger); color: var(--danger); }
-    #toast.info { border-color: var(--accent); color: var(--accent); }
+    #toast.info { border-color: var(--azul); color: var(--azul); }
 
     #ov {
       display: none;
@@ -350,29 +350,28 @@
       max-width: 860px;
       margin: 0 auto;
       display: flex;
-      gap: 8px;
+      gap: 6px;
       padding: 16px 20px 0;
     }
 
     .tab-btn {
       flex: 1;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
+      background: transparent;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
       color: var(--muted);
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      padding: 12px;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 16px;
       cursor: pointer;
       transition: border-color .15s, color .15s;
     }
 
     .tab-btn.active {
-      border-color: var(--accent);
-      color: var(--accent2);
+      border-bottom-color: var(--accent);
+      color: var(--text);
     }
 
     .lc-card {
@@ -419,7 +418,7 @@
       border: 1px solid var(--border);
       border-radius: var(--r);
       color: var(--text);
-      font-family: 'Inter', sans-serif;
+      font-family: var(--font);
       font-size: 14px;
       padding: 12px 14px;
       cursor: pointer;
@@ -468,7 +467,7 @@
 
     #ai-status {
       display: none;
-      background: linear-gradient(90deg, #009e1a18, #006810 10%, #009e1a18);
+      background: color-mix(in srgb, var(--card) 85%, var(--accent));
       border: 1px solid var(--accent);
       border-radius: var(--r);
       padding: 10px 14px;
@@ -495,8 +494,8 @@
       text-align: center;
       padding: 8px 16px 16px;
       font-size: 10px;
-      color: #3a4259;
-      letter-spacing: 1px;
+      color: var(--faint);
+      letter-spacing: .04em;
       text-transform: uppercase;
     }
 
@@ -577,10 +576,10 @@
     }
 
     #viewSilos .status.st-vazio { color: var(--muted); }
-    #viewSilos .status.st-baixo { color: var(--blue); background: rgba(0,158,26,0.10); border-color: rgba(0,158,26,0.25); }
-    #viewSilos .status.st-normal { color: var(--green); background: rgba(61,201,122,0.10); border-color: rgba(61,201,122,0.25); }
+    #viewSilos .status.st-baixo { color: var(--blue); background: rgba(31,154,74,0.10); border-color: rgba(31,154,74,0.25); }
+    #viewSilos .status.st-normal { color: var(--green); background: rgba(60,207,126,0.10); border-color: rgba(60,207,126,0.25); }
     #viewSilos .status.st-alto { color: var(--orange); background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); }
-    #viewSilos .status.st-cheio { color: var(--red); background: rgba(224,80,80,0.12); border-color: rgba(224,80,80,0.3); }
+    #viewSilos .status.st-cheio { color: var(--red); background: rgba(229,72,77,0.12); border-color: rgba(229,72,77,0.3); }
 
     #viewSilos .silo-area {
       display: flex;
@@ -657,7 +656,7 @@
       left: 0; bottom: 0;
       width: 100%; height: 0%;
       transition: height 0.5s cubic-bezier(.4,0,.2,1), background 0.35s ease;
-      background: linear-gradient(to right, #1565c0, #2196f3, #42a5f5);
+      background: linear-gradient(to right, #0568b3, #078feb, #3aaaf2);
       box-shadow: inset 0 8px 15px rgba(255,255,255,0.14);
     }
 
@@ -725,7 +724,7 @@
       -webkit-mask-image: linear-gradient(to top, black 0%, black 0%, transparent 0%, transparent 100%);
       mask-image: linear-gradient(to top, black 0%, black 0%, transparent 0%, transparent 100%);
       opacity: 0;
-      background: linear-gradient(90deg, #1565c0, #2196f3, #42a5f5);
+      background: linear-gradient(90deg, #0568b3, #078feb, #3aaaf2);
       transition: opacity 0.4s ease, background 0.35s ease, -webkit-mask-image 0.4s ease, mask-image 0.4s ease;
     }
 
@@ -809,9 +808,9 @@
     }
 
     #viewSilos .pct-subtoggle .subtab.active {
-      background: rgba(0,158,26,0.10);
+      background: rgba(31,154,74,0.10);
       color: var(--blue);
-      border-color: rgba(0,158,26,0.35);
+      border-color: rgba(31,154,74,0.35);
       border-style: solid;
     }
 
@@ -852,7 +851,7 @@
     #viewSilos .input-wrapper input:focus {
       border-color: var(--blue);
       background: var(--input-focus);
-      box-shadow: 0 0 0 3px rgba(0,158,26,0.14);
+      box-shadow: 0 0 0 3px rgba(31,154,74,0.14);
     }
 
     #viewSilos .unit-symbol {
@@ -887,7 +886,7 @@
       margin-top: 12px;
       padding: 20px;
       border-radius: 14px;
-      background: linear-gradient(135deg, rgba(0,158,26,0.08), rgba(0,104,16,0.05));
+      background: linear-gradient(135deg, rgba(31,154,74,0.08), rgba(26,119,51,0.05));
       border: 1px solid var(--border);
       text-align: center;
     }
@@ -1057,8 +1056,8 @@
 
     #viewSilos .main-tabs .maintab.active {
       color: var(--blue);
-      border-color: rgba(0,158,26,0.35);
-      background: linear-gradient(135deg, rgba(0,158,26,0.10), rgba(0,104,16,0.05));
+      border-color: rgba(31,154,74,0.35);
+      background: linear-gradient(135deg, rgba(31,154,74,0.10), rgba(26,119,51,0.05));
     }
 
     #viewSilos .tab-panel { display: none; }
@@ -1100,7 +1099,7 @@
       width: 100%; height: 100%;
       z-index: 6;
       opacity: 0;
-      background: linear-gradient(90deg, #1565c0, #2196f3, #42a5f5);
+      background: linear-gradient(90deg, #0568b3, #078feb, #3aaaf2);
       transition: opacity 0.4s ease, background 0.35s ease, -webkit-mask-image 0.4s ease, mask-image 0.4s ease;
     }
 
@@ -1234,7 +1233,7 @@
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn-sub" style="margin-top:0;" onclick="salvarConfig()">Salvar</button>
         <button type="button" id="btnCancelarConfig" onclick="fecharConfig()"
-          style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
+          style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:var(--font);font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
       </div>
       <button type="button" onclick="fecharConfig(); abrirItensEditor();"
         style="margin-top:14px;width:100%;background:transparent;border:1px dashed var(--border);border-radius:var(--r);color:var(--muted);font-size:12.5px;padding:10px;cursor:pointer;">
@@ -1258,7 +1257,7 @@
         <div style="display:flex;gap:10px;">
           <button type="button" class="btn-sub" style="margin-top:0;" onclick="verificarSenhaItens()">Entrar</button>
           <button type="button" onclick="fecharItensEditor()"
-            style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
+            style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:var(--font);font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
         </div>
       </div>
 
@@ -1290,7 +1289,7 @@
         <div style="display:flex;gap:10px;">
           <button type="button" class="btn-sub" style="margin-top:0;" onclick="salvarItensEditor()">Salvar no GitHub</button>
           <button type="button" onclick="fecharItensEditor()"
-            style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
+            style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:var(--font);font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
         </div>
       </div>
     </div>
@@ -1440,7 +1439,7 @@
           <span id="btnCarregarTxt">Carregar</span>
         </button>
         <button type="button" onclick="abrirExportar()"
-          style="flex:1;min-width:160px;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:14px 20px;cursor:pointer;">
+          style="flex:1;min-width:160px;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font);font-size:17px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:14px 20px;cursor:pointer;">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
             <path d="M12 15V3M6 9l6 6 6-6" />
             <path d="M4 21h16" />
@@ -3125,7 +3124,7 @@
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn-sub" style="margin-top:0;" onclick="salvarEdicao()">Salvar</button>
         <button type="button" onclick="fecharEdicao()"
-          style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
+          style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:var(--font);font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
       </div>
     </div>
   </div>
@@ -3175,7 +3174,7 @@
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn-sub" style="margin-top:0;" onclick="gerarExportacao()">Gerar planilha</button>
         <button type="button" onclick="fecharExportar()"
-          style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
+          style="margin-top:0;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:var(--r);padding:16px 20px;cursor:pointer;font-family:var(--font);font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cancelar</button>
       </div>
     </div>
   </div>
@@ -3200,7 +3199,7 @@
           Salvar no dispositivo
         </button>
         <button type="button" onclick="compartilharExport()"
-          style="margin-top:0;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:14px 20px;cursor:pointer;">
+          style="margin-top:0;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font);font-size:17px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:14px 20px;cursor:pointer;">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
             <circle cx="18" cy="5" r="3" />
             <circle cx="6" cy="12" r="3" />
@@ -3210,7 +3209,7 @@
           Compartilhar
         </button>
         <button type="button" onclick="fecharExportPronto()"
-          style="margin-top:0;background:transparent;border:none;color:var(--muted);padding:8px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Fechar</button>
+          style="margin-top:0;background:transparent;border:none;color:var(--muted);padding:8px;cursor:pointer;font-family:var(--font);font-size:15px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Fechar</button>
       </div>
     </div>
   </div>
@@ -4797,6 +4796,54 @@
       }
     }
 
+    // Busca o conteúdo de vários arquivos usando a API GraphQL do GitHub, que
+    // libera CORS pra qualquer origem (ao contrário do zipball). Cada
+    // requisição busca um lote de arquivos de uma vez via aliases, e os
+    // lotes rodam em paralelo — bem mais rápido que 1 requisição por arquivo.
+    async function buscarConteudosGraphQL(token, arquivos) {
+      const LOTE = 50;
+      const CONCORRENCIA = 6;
+      const resultado = new Map(); // path -> dados
+
+      async function buscarLote(lote) {
+        const campos = lote.map((arq, i) =>
+          `f${i}: object(expression: ${JSON.stringify(`${GITHUB_BRANCH}:${arq.path}`)}) { ... on Blob { text } }`
+        ).join('\n');
+        const query = `query {
+          repository(owner: ${JSON.stringify(GITHUB_OWNER)}, name: ${JSON.stringify(GITHUB_REPO)}) {
+            ${campos}
+          }
+        }`;
+
+        const r = await fetch('https://api.github.com/graphql', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const json = await r.json();
+        if (json.errors && !json.data) throw new Error(json.errors[0]?.message || 'Erro GraphQL');
+
+        const repo = json.data?.repository || {};
+        lote.forEach((arq, i) => {
+          const texto = repo[`f${i}`]?.text;
+          if (texto == null) { console.warn('[Lançamentos] arquivo não encontrado via GraphQL:', arq.path); return; }
+          try {
+            resultado.set(arq.path, JSON.parse(texto));
+          } catch (e) {
+            console.warn('[Lançamentos] JSON inválido via GraphQL:', arq.path, e);
+          }
+        });
+      }
+
+      const lotes = [];
+      for (let i = 0; i < arquivos.length; i += LOTE) lotes.push(arquivos.slice(i, i + LOTE));
+      for (let i = 0; i < lotes.length; i += CONCORRENCIA) {
+        await Promise.all(lotes.slice(i, i + CONCORRENCIA).map(buscarLote));
+      }
+      return resultado;
+    }
+
     async function carregarLancamentos() {
       const token = await getGithubToken();
       if (!token) { toast('Configure o token do GitHub primeiro.', 'error'); abrirConfig(); return; }
@@ -4828,41 +4875,61 @@
         let itens = [];
 
         // ─── Método 1 (rápido): baixa o repositório inteiro em .zip e lê localmente
-        try {
-          info.textContent = 'Baixando dados do repositório...';
-          const zipBytes = await baixarZipRepositorio(token);
-          info.textContent = 'Descompactando e lendo lançamentos...';
-          const zip = await JSZip.loadAsync(zipBytes);
+        // Só funciona no app nativo (Capacitor): no navegador, o zip do GitHub é
+        // servido via redirect para codeload.github.com, que não libera CORS para
+        // este site — a tentativa sempre falharia e só atrasaria o carregamento.
+        if (window.Capacitor?.Plugins?.CapacitorHttp) {
+          try {
+            info.textContent = 'Baixando dados do repositório...';
+            const zipBytes = await baixarZipRepositorio(token);
+            info.textContent = 'Descompactando e lendo lançamentos...';
+            const zip = await JSZip.loadAsync(zipBytes);
 
-          const entradas = Object.values(zip.files).filter(f =>
-            !f.dir && f.name.includes(`/${GITHUB_PATH_PREFIX}/`) && f.name.endsWith('.json')
-          );
+            const entradas = Object.values(zip.files).filter(f =>
+              !f.dir && f.name.includes(`/${GITHUB_PATH_PREFIX}/`) && f.name.endsWith('.json')
+            );
 
-          const conteudos = await Promise.all(entradas.map(async f => {
-            const nome = f.name.split('/').pop();
-            try {
-              const texto = await f.async('string');
-              return { nome, dados: JSON.parse(texto) };
-            } catch (e) {
-              console.warn('[Lançamentos] falha ao ler do zip:', nome, e);
-              return null;
-            }
-          }));
+            const conteudos = await Promise.all(entradas.map(async f => {
+              const nome = f.name.split('/').pop();
+              try {
+                const texto = await f.async('string');
+                return { nome, dados: JSON.parse(texto) };
+              } catch (e) {
+                console.warn('[Lançamentos] falha ao ler do zip:', nome, e);
+                return null;
+              }
+            }));
 
-          itens = conteudos
-            .filter(Boolean)
-            .filter(c => shaPorNome.has(c.nome)) // ignora arquivos que não estão mais na listagem atual
-            .map(c => ({ path: `${GITHUB_PATH_PREFIX}/${c.nome}`, sha: shaPorNome.get(c.nome), dados: c.dados }));
+            itens = conteudos
+              .filter(Boolean)
+              .filter(c => shaPorNome.has(c.nome)) // ignora arquivos que não estão mais na listagem atual
+              .map(c => ({ path: `${GITHUB_PATH_PREFIX}/${c.nome}`, sha: shaPorNome.get(c.nome), dados: c.dados }));
 
-          console.log(`[Lançamentos] ${itens.length} lançamentos lidos via zip do repositório`);
-        } catch (errZip) {
-          console.warn('[Lançamentos] método via zip falhou, caindo para busca em lotes:', errZip);
+            console.log(`[Lançamentos] ${itens.length} lançamentos lidos via zip do repositório`);
+          } catch (errZip) {
+            console.warn('[Lançamentos] método via zip falhou, caindo para busca em lotes:', errZip);
+          }
         }
 
-        // ─── Método 2 (reserva): se o zip falhar por qualquer motivo, busca em
-        // lotes paralelos — mais lento, mas não depende do zipball funcionar
+        // ─── Método 2 (rápido também no navegador): busca o conteúdo dos
+        // arquivos em lotes via GraphQL, que libera CORS pra qualquer origem.
         if (!itens.length && arquivos.length) {
-          const CONCORRENCIA = 15;
+          try {
+            info.textContent = 'Buscando lançamentos...';
+            const conteudos = await buscarConteudosGraphQL(token, arquivos);
+            itens = arquivos
+              .filter(a => conteudos.has(a.path))
+              .map(a => ({ path: a.path, sha: a.sha, dados: conteudos.get(a.path) }));
+            console.log(`[Lançamentos] ${itens.length} lançamentos lidos via GraphQL`);
+          } catch (errGql) {
+            console.warn('[Lançamentos] método via GraphQL falhou, caindo para busca em lotes REST:', errGql);
+          }
+        }
+
+        // ─── Método 3 (última reserva): se zip e GraphQL falharem, busca em
+        // lotes paralelos via REST — mais lento, mas não depende de nenhum dos dois
+        if (!itens.length && arquivos.length) {
+          const CONCORRENCIA = 24;
 
           async function baixarConteudo(arq) {
             if (arq.download_url) {
