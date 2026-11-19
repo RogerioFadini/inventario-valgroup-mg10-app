@@ -8,7 +8,7 @@
   <!-- Incremente esse número a cada deploy relevante — usado pra detectar
        automaticamente quando uma versão mais nova foi publicada (ver
        verificarAtualizacaoDisponivel em DOMContentLoaded). -->
-  <meta name="app-version" content="9">
+  <meta name="app-version" content="10">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0e1d3b">
   <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
@@ -65,15 +65,26 @@
       touch-action: manipulation;
     }
 
+    /* Cabeçalho no padrão da topbar da Automação SAP • Relatórios: escuro à
+       esquerda (nome do app), degradê até o claro à direita, onde ficam a logo
+       da Valgroup, o divisor e os botões. Onde o degradê começa/termina
+       (--g-s/--g-t) é calculado em ajustarDegradeHeader() conforme a largura. */
     header {
-      background: var(--sidebar);
+      --claro: #eeeeee;
+      --g-s: 45%;
+      --g-t: 25%;
+      background: linear-gradient(90deg, var(--sidebar) 45%, var(--claro) 75%);
+      background: linear-gradient(90deg, var(--sidebar) 0, var(--sidebar) var(--g-s),
+        color-mix(in srgb, var(--sidebar) 84.4%, var(--claro)) calc(var(--g-s) + .25 * var(--g-t)),
+        color-mix(in srgb, var(--sidebar) 50%, var(--claro)) calc(var(--g-s) + .5 * var(--g-t)),
+        color-mix(in srgb, var(--sidebar) 15.6%, var(--claro)) calc(var(--g-s) + .75 * var(--g-t)),
+        var(--claro) calc(var(--g-s) + var(--g-t)), var(--claro) 100%);
       border-bottom: 1px solid var(--border);
-      padding: 0 24px;
+      padding: 0 18px 0 16px;
       padding-top: max(0px, env(safe-area-inset-top));
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: none;
     }
 
     .hi {
@@ -82,41 +93,82 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 64px;
+      height: 65px;
     }
 
     .logo {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
+      min-width: 0;
     }
 
     .logo-img {
-      width: 38px;
-      height: 38px;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
       object-fit: contain;
       flex-shrink: 0;
     }
 
-    .logo-text {
-      font-family: var(--font);
-      font-size: 22px;
+    .logo-text b {
+      display: block;
+      font-size: 20px;
       font-weight: 600;
-      letter-spacing: 1px;
-      line-height: 1;
+      color: var(--text);
+      line-height: 1.15;
+      white-space: nowrap;
     }
 
-    .logo-text .val { color: var(--val); }
-    .logo-text .group { color: var(--group); }
-    .logo-text span:last-child { color: var(--site); }
-    .logo-text span { color: var(--accent); }
-
-    .logo-sub {
-      font-size: 10px;
+    .logo-text span {
       color: var(--muted);
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      margin-top: 2px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .hdir {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+
+    .hdir .logo-vg { height: 26px; display: block; }
+
+    .divisor-v {
+      width: 1px;
+      height: 29px;
+      background: #c5c9d0;
+      background: color-mix(in srgb, var(--claro) 82%, var(--sidebar));
+    }
+
+    .hbtns { display: flex; gap: 4px; }
+
+    .hbtn {
+      position: relative;
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--sidebar);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background .12s, color .12s;
+    }
+
+    .hbtn:hover { background: rgba(14, 29, 59, .08); }
+    .hbtn.ativo { color: var(--accent); background: rgba(31, 154, 74, .14); }
+
+    @media (max-width: 480px) {
+      header { padding-left: 12px; padding-right: 10px; }
+      .logo-img { display: none; }
+      .hdir { gap: 8px; }
+      .hdir .logo-vg { height: 18px; }
+      .hbtns { gap: 2px; }
+      .hbtn { width: 34px; height: 34px; }
     }
 
     main {
@@ -1171,18 +1223,15 @@
   <header>
     <div class="hi">
       <div class="logo">
-        <img src="img/logo.png" class="logo-img">
-        <div>
-          <div class="logo-text">
-            <span class="val">Val</span><span class="group">group</span>
-            <span>MG10</span>
-          </div>
-          <div class="logo-sub">Inventário</div>
-        </div>
+        <img src="img/logo.png" class="logo-img" alt="">
+        <div class="logo-text"><b>Inventário</b><span>MG10</span></div>
       </div>
-      <div style="display:flex;gap:8px;">
-        <button type="button" id="btnPendentesHeader" onclick="mudarAba('pendentes')" title="Lançamentos pendentes"
-          style="display:none;position:relative;background:transparent;border:1px solid var(--border);border-radius:var(--r);color:var(--muted);width:36px;height:36px;align-items:center;justify-content:center;cursor:pointer;">
+      <div class="hdir">
+        <img src="img/logo_valgroup.png" class="logo-vg" alt="Valgroup">
+        <div class="divisor-v"></div>
+        <div class="hbtns">
+        <button type="button" id="btnPendentesHeader" onclick="mudarAba('pendentes')" title="Lançamentos pendentes" class="hbtn"
+          style="display:none;">
           <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M12 9v4" />
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -1191,19 +1240,18 @@
           <span id="badgePendentes"
             style="display:none;position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;border-radius:10px;min-width:16px;height:16px;padding:0 3px;align-items:center;justify-content:center;line-height:1;"></span>
         </button>
-        <button type="button" id="btnExportadosHeader" onclick="mudarAba('exportados')" title="Arquivos exportados"
-          style="background:transparent;border:1px solid var(--border);border-radius:var(--r);color:var(--muted);width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+        <button type="button" id="btnExportadosHeader" onclick="mudarAba('exportados')" title="Arquivos exportados" class="hbtn">
           <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
           </svg>
         </button>
-        <button type="button" id="btnConfig" onclick="abrirConfig()" title="Configurar acesso ao GitHub"
-          style="background:transparent;border:1px solid var(--border);border-radius:var(--r);color:var(--muted);width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+        <button type="button" id="btnConfig" onclick="abrirConfig()" title="Configurar acesso ao GitHub" class="hbtn">
           <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
         </button>
+        </div>
       </div>
     </div>
   </header>
@@ -4600,6 +4648,35 @@
       localEscolhidoManualmente = false;
     }
 
+    // ─── Degradê do cabeçalho ─────────────────────────────────────────────────────
+    // Mesma ideia da topbar do programa desktop: escuro até 45% da largura, claro
+    // embaixo da logo/botões e o degradê no meio. No celular o espaço é curto,
+    // então o escuro termina logo depois do nome do app e o claro começa um pouco
+    // antes da logo da Valgroup.
+    function ajustarDegradeHeader() {
+      const header = document.querySelector('header');
+      const nome = header?.querySelector('.logo');
+      const dir = header?.querySelector('.hdir');
+      if (!nome || !dir) return;
+      const base = header.getBoundingClientRect().left;
+      const largura = header.clientWidth;
+      const fimNome = nome.getBoundingClientRect().right - base;
+      const inicioClaro = dir.getBoundingClientRect().left - base - 10;
+      let inicio = Math.max(fimNome + 16, Math.min(largura * 0.45, inicioClaro - 60));
+      if (inicio > inicioClaro - 16) inicio = Math.max(fimNome + 4, inicioClaro - 16);
+      header.style.setProperty('--g-s', inicio + 'px');
+      header.style.setProperty('--g-t', Math.max(8, inicioClaro - inicio) + 'px');
+    }
+    window.addEventListener('resize', ajustarDegradeHeader);
+    document.addEventListener('DOMContentLoaded', () => {
+      ajustarDegradeHeader();
+      if (window.ResizeObserver) {
+        const ro = new ResizeObserver(ajustarDegradeHeader);
+        ro.observe(document.querySelector('header'));
+        ro.observe(document.querySelector('header .hdir'));
+      }
+    });
+
     // ─── Abas ─────────────────────────────────────────────────────────────────────
     function mudarAba(aba) {
       document.getElementById('viewNovo').style.display = aba === 'novo' ? '' : 'none';
@@ -4610,10 +4687,8 @@
       document.getElementById('tabBtnNovo').classList.toggle('active', aba === 'novo');
       document.getElementById('tabBtnLista').classList.toggle('active', aba === 'lista');
       document.getElementById('tabBtnSilos').classList.toggle('active', aba === 'silos');
-      document.getElementById('btnExportadosHeader').style.color = aba === 'exportados' ? 'var(--accent2)' : 'var(--muted)';
-      document.getElementById('btnExportadosHeader').style.borderColor = aba === 'exportados' ? 'var(--accent)' : 'var(--border)';
-      document.getElementById('btnPendentesHeader').style.color = aba === 'pendentes' ? 'var(--accent2)' : 'var(--muted)';
-      document.getElementById('btnPendentesHeader').style.borderColor = aba === 'pendentes' ? 'var(--accent)' : 'var(--border)';
+      document.getElementById('btnExportadosHeader').classList.toggle('ativo', aba === 'exportados');
+      document.getElementById('btnPendentesHeader').classList.toggle('ativo', aba === 'pendentes');
       if (aba === 'exportados') renderExportadosCards();
     }
 

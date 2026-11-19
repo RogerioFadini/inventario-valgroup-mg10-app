@@ -4,7 +4,7 @@
 //
 // Incremente CACHE_VERSION a cada deploy: isso invalida o cache antigo
 // automaticamente (activate abaixo apaga qualquer cache com nome diferente).
-const CACHE_VERSION = 'invmg10-v4';
+const CACHE_VERSION = 'invmg10-v5';
 const CACHE_NAME = `app-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `runtime-${CACHE_VERSION}`;
 
@@ -16,6 +16,7 @@ const APP_SHELL = [
   'index.html',
   'manifest.json',
   'img/logo.png',
+  'img/logo_valgroup.png',
   'img/icons/icon-192.png',
   'img/icons/icon-512.png',
   'img/icons/icon-512-maskable.png',
