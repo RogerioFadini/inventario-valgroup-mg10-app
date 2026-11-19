@@ -8,7 +8,7 @@
   <!-- Incremente esse número a cada deploy relevante — usado pra detectar
        automaticamente quando uma versão mais nova foi publicada (ver
        verificarAtualizacaoDisponivel em DOMContentLoaded). -->
-  <meta name="app-version" content="15">
+  <meta name="app-version" content="16">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0e1d3b">
   <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
@@ -1480,7 +1480,7 @@
         </div>
       </div>
       <div class="field" id="campoCausaDesvio" style="margin-top:14px;display:none">
-        <label for="causaDesvio">Causa do desvio <span class="req">*</span></label>
+        <label for="causaDesvio">Causa do desvio</label>
         <select id="causaDesvio"></select>
       </div>
       <div class="g2" style="margin-top:14px">
@@ -5112,11 +5112,9 @@
         if (!gv(id)?.trim()) { toast(`Campo obrigatório: ${nome}`, 'error'); return; }
       }
       if (gv('matricula').length !== 4) { toast('Matrícula deve conter 4 dígitos', 'error'); return; }
-      // Refugo (Subproduto): causa do desvio obrigatória e sem lote.
-      // Os outros tipos: sem causa do desvio (o campo fica escondido e vazio).
-      if (gv('produto') === TIPO_REFUGO && !gv('causaDesvio')) {
-        toast('Campo obrigatório: Causa do desvio', 'error'); return;
-      }
+      // Causa do desvio: só no refugo (Subproduto), por enquanto OPCIONAL —
+      // etiquetas antigas não têm o campo. Quando elas saírem do estoque, voltar
+      // a exigir aqui e na edição (salvarEdicao) e pôr o * no rótulo.
 
       // Exige pelo menos um dos campos preenchido
       const uc = document.getElementById('uc')?.value?.trim();
@@ -5694,9 +5692,6 @@
       if (!token) { toast('Configure o token do GitHub primeiro.', 'error'); abrirConfig(); return; }
 
       const item = lancamentosCache[edicaoIndexAtual];
-      if (item.dados.produto === TIPO_REFUGO && !document.getElementById('editCausaDesvio').value) {
-        toast('Campo obrigatório: Causa do desvio', 'error'); return;
-      }
       const dadosNovos = {
         data_inventario: document.getElementById('editData').value,
         nome: document.getElementById('editNome').value,
