@@ -8,7 +8,7 @@
   <!-- Incremente esse número a cada deploy relevante — usado pra detectar
        automaticamente quando uma versão mais nova foi publicada (ver
        verificarAtualizacaoDisponivel em DOMContentLoaded). -->
-  <meta name="app-version" content="16">
+  <meta name="app-version" content="17">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0e1d3b">
   <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
@@ -3481,6 +3481,17 @@
 
     // Nome do setor na tela. O valor salvo continua "Recicladora" (chave da
     // lista de itens e dos lançamentos já feitos); só o texto mostrado muda.
+    // Datas: guardadas como "AAAA-MM-DD" (ordenam e filtram certo); na tela, DD/MM/AAAA.
+    function dataBR(iso) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+      return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || '');
+    }
+    // Data de hoje no fuso do aparelho (toISOString é UTC: depois das 21h já seria amanhã).
+    function hojeISO() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     function nomeSetor(setor) { return setor === 'Recicladora' ? 'Recicladoras' : (setor || ''); }
 
     // A causa do desvio só vale para refugo (tipo "Subproduto").
@@ -5050,7 +5061,7 @@
       const descricao = partes.length > 1 ? partes.slice(1).join(' - ').trim() : '';
 
       return {
-        data_inventario: new Date().toISOString().split('T')[0],
+        data_inventario: hojeISO(),
         nome: gv('nome'),
         matricula: gv('matricula'),
         setor: gv('setor'),
@@ -5286,7 +5297,7 @@
         div.innerHTML = `
           <div class="lc-info">
             <b>${d.nome || '—'}</b> <span class="muted">(${d.matricula || '—'})</span><br>
-            <span class="muted">${d.data_inventario || '—'} · ${nomeSetor(d.setor)} · ${d.item || ''} · Peso: ${d.peso || '—'}</span><br>
+            <span class="muted">${dataBR(d.data_inventario) || '—'} · ${nomeSetor(d.setor)} · ${d.item || ''} · Peso: ${d.peso || '—'}</span><br>
             ${statusTxt}
           </div>`;
         cont.appendChild(div);
@@ -5587,7 +5598,7 @@
         div.innerHTML = `
           <div class="lc-info">
             <b>${d.nome || '—'}</b> <span class="muted">(${d.matricula || '—'})</span><br>
-            <span class="muted">${d.data_inventario || '—'} · ${nomeSetor(d.setor)} · ${d.item || ''}</span><br>
+            <span class="muted">${dataBR(d.data_inventario) || '—'} · ${nomeSetor(d.setor)} · ${d.item || ''}</span><br>
             <span class="muted">Peso: ${d.peso || '—'} · Lote: ${d.lote || '—'} · Local: ${d.local || '—'}</span>
             ${d.causa_desvio ? `<br><span class="muted">Desvio: ${d.causa_desvio}</span>` : ''}
             ${d.observacoes ? `<br><span class="muted">Obs: ${d.observacoes}</span>` : ''}
@@ -5818,14 +5829,20 @@
 
       sheet.columns = colunas.map((c, i) => ({ header: cabecalho[i], key: c }));
       itens.forEach(it => {
-        sheet.addRow(colunas.reduce((obj, c) => { obj[c] = it.dados[c] ?? ''; return obj; }, {}));
+        const linha = colunas.reduce((obj, c) => { obj[c] = it.dados[c] ?? ''; return obj; }, {});
+        // Data como data de verdade no Excel (ordena/filtra), exibida DD/MM/AAAA
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(linha.data_inventario);
+        if (m) linha.data_inventario = new Date(Date.UTC(+m[1], m[2] - 1, +m[3]));
+        sheet.addRow(linha);
       });
+      sheet.getColumn('data_inventario').numFmt = 'dd/mm/yyyy';
 
       // Largura de cada coluna, baseada no maior conteúdo (mín. 10, máx. 40)
       sheet.columns.forEach((col, i) => {
         let maior = cabecalho[i].length;
         sheet.eachRow({ includeEmpty: false }, row => {
-          const v = (row.getCell(i + 1).value ?? '').toString();
+          const cel = row.getCell(i + 1).value;
+          const v = cel instanceof Date ? 'dd/mm/aaaa' : (cel ?? '').toString();
           if (v.length > maior) maior = v.length;
         });
         col.width = Math.min(Math.max(maior + 2, 10), 40);
