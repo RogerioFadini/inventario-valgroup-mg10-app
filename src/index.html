@@ -8,7 +8,7 @@
   <!-- Incremente esse número a cada deploy relevante — usado pra detectar
        automaticamente quando uma versão mais nova foi publicada (ver
        verificarAtualizacaoDisponivel em DOMContentLoaded). -->
-  <meta name="app-version" content="17">
+  <meta name="app-version" content="18">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0e1d3b">
   <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
@@ -1618,7 +1618,7 @@
       <div id="sapCorpo"></div>
       <div class="sap-delta"><span>Delta</span><b id="sapDelta">0</b></div>
       <div style="color:var(--faint);font-size:11.5px;margin-top:8px;line-height:1.45;">
-        Delta = Silos − Processo + SAP dos silos − SAP INV<br>
+        Delta = Silos + Processo − SAP<br>
         Os silos vêm do cálculo da aba (kg); o resto é digitado e fica salvo neste aparelho.
       </div>
       <div style="display:flex;gap:10px;margin-top:16px;">
@@ -7096,8 +7096,8 @@ function attachDrag(n) {
    COMPARAR COM SAP
    Pop-up por aba: peso calculado de cada silo + valores digitados (Processo,
    SAP de cada silo, SAP INV) e o Delta.
-   Delta = Silos − Processo + SAP dos silos − SAP INV — fórmula que reproduz o
-   exemplo real (29.943 − 12.629 + 44.705,502 + 0 − 32.361,816 = 29.657,69).
+   Delta = Silos + Processo − SAP (SAP de cada silo/depósito e SAP INV).
+   Ex.: 10.030 + 12.878 − 42.344 − 32.363 = −51.799.
    Os silos entram arredondados ao kg, como aparecem na tela.
 ========================================================= */
 
@@ -7191,7 +7191,7 @@ function atualizarComparacaoSAP() {
 
     let sapSilos = 0;
     _camposSAP(cfg).forEach(c => { sapSilos += numeroBR(digitados[c.chave]); });
-    const delta = silos - numeroBR(digitados.processo) + sapSilos - numeroBR(digitados.inv);
+    const delta = silos + numeroBR(digitados.processo) - sapSilos - numeroBR(digitados.inv);
 
     const el = document.getElementById("sapDelta");
     el.textContent = fmt(delta, 2);
