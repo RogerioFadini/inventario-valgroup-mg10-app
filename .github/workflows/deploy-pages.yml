@@ -17,11 +17,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  # Build e deploy em jobs separados (modelo oficial do GitHub Pages): com os dois
+  # no mesmo job, o deploy às vezes procurava o pacote antes de o GitHub
+  # registrá-lo ("No artifacts named github-pages were found") e falhava.
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,6 +65,13 @@ jobs:
         with:
           path: ./www
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
