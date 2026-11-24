@@ -8,7 +8,7 @@
   <!-- Incremente esse número a cada deploy relevante — usado pra detectar
        automaticamente quando uma versão mais nova foi publicada (ver
        verificarAtualizacaoDisponivel em DOMContentLoaded). -->
-  <meta name="app-version" content="18">
+  <meta name="app-version" content="19">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0e1d3b">
   <link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
@@ -3213,7 +3213,7 @@
 </div>
   </main>
 
-  <footer>dev: <span>Fadini</span></footer>
+  <footer>dev: <span>Fadini</span> · <span id="versaoApp"></span></footer>
 
   <div id="editModal">
     <div class="config-box" style="max-width:440px;">
@@ -5023,6 +5023,9 @@
     });
 
     window.addEventListener('DOMContentLoaded', () => {
+      // Versão no rodapé (a mesma do <meta name="app-version">)
+      document.getElementById('versaoApp').textContent =
+        'v' + (document.querySelector('meta[name="app-version"]')?.content || '?');
       document.getElementById('setor').addEventListener('change', atualizarTipos);
       document.getElementById('editSetor').addEventListener('change', () => {
         const sel = document.getElementById('editCausaDesvio');
